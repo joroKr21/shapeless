@@ -211,18 +211,22 @@ object Default {
 class DefaultMacros(val c: whitebox.Context) extends CaseClassMacros {
   import c.universe._
 
-  def someTpe = typeOf[Some[_]].typeConstructor
-  def noneTpe = typeOf[None.type]
+  def someTpe: Type = typeOf[Some[_]].typeConstructor
+  def noneTpe: Type = typeOf[None.type]
 
   def materialize[T: WeakTypeTag, L: WeakTypeTag]: Tree = {
     val tpe = weakTypeOf[T]
     val cls = classSym(tpe)
 
     lazy val companion = companionRef(tpe)
-    def altCompanion = companion.symbol.info
+    lazy val altCompanion = companion.symbol.info
+    lazy val prefix = {
+      val companionCls = tpe.companion.typeSymbol
+      if (ownerChain(c.internal.enclosingOwner).contains(companionCls)) q"${This(companionCls)}" else q"$companion"
+    }
 
-    val none = q"_root_.scala.None"
-    def some(value: Tree) = q"_root_.scala.Some($value)"
+    val none = objectRef[None.type]
+    val some = objectRef[Some.type]
 
     // Symbol.alternatives is missing in Scala 2.10
     def overloadsOf(sym: Symbol) =
@@ -243,21 +247,20 @@ class DefaultMacros(val c: whitebox.Context) extends CaseClassMacros {
         alt => alt.isMethod && hasDefaultParams(alt.asMethod)
       }
 
-    def defaultsFor(fields: List[(TermName, Type)]) = for {
-      ((_, argTpe), i) <- fields.zipWithIndex
-      default = tpe.companion.member(TermName(s"apply$$default$$${i + 1}")) orElse
-        altCompanion.member(TermName(s"$$lessinit$$greater$$default$$${i + 1}"))
-    } yield if (default.isTerm) {
-      val defaultTpe = appliedType(someTpe, devarargify(argTpe))
-      val defaultVal = some(q"$companion.$default")
-      (defaultTpe, defaultVal)
-    } else (noneTpe, none)
+    def defaultsFor(fields: List[(TermName, Type)]) =
+      for (((_, argTpe), i) <- fields.zipWithIndex) yield {
+        val default = tpe.companion.member(TermName(s"apply$$default$$${i + 1}")) orElse
+          altCompanion.member(TermName(s"$$lessinit$$greater$$default$$${i + 1}"))
+        if (default.isTerm) (appliedType(someTpe, devarargify(argTpe)), q"$some($prefix.$default)")
+        else (noneTpe, none)
+      }
 
     def mkDefault(defaults: List[(Type, Tree)]) = {
       val (types, values) = defaults.unzip
       val outTpe = mkHListTpe(types)
       val outVal = mkHListValue(values)
-      q"_root_.shapeless.Default.mkDefault[$tpe, $outTpe]($outVal)"
+      val default = objectRef[Default.type]
+      q"$default.mkDefault[$tpe, $outTpe]($outVal)"
     }
 
     if (isCaseObjectLike(cls)) return mkDefault(Nil)

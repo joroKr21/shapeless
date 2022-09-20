@@ -76,21 +76,27 @@ package object shapeless extends ScalaVersionSpecifics {
   val poly = PolyDefns
   import poly._
 
-  /** Dependent nullary function type. */
-  trait DepFn0 {
+  /** Type alias to refine the output of a [[DepFn]]. */
+  type :=>[F <: DepFn, O] = F {
+    type Out = O
+  }
+
+  trait DepFn extends Serializable {
     type Out
+  }
+
+  /** Dependent nullary function type. */
+  trait DepFn0 extends DepFn {
     def apply(): Out
   }
 
   /** Dependent unary function type. */
-  trait DepFn1[T] {
-    type Out
+  trait DepFn1[-T] extends DepFn {
     def apply(t: T): Out
   }
 
   /** Dependent binary function type. */
-  trait DepFn2[T, U] {
-    type Out
+  trait DepFn2[-T, -U] extends DepFn {
     def apply(t: T, u: U): Out
   }
 

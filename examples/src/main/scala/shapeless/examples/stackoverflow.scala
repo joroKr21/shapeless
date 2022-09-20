@@ -27,10 +27,13 @@ object StackOverflow2 {
   case class A1 ( a : A ) extends A  { def eval() = this }
   case class A2 ( a : A, b : A ) extends A  { def eval() = this }
   
-  case class ApplyA[C, L <: HList, HF](c : C, l : L)
-    (implicit fntp: FnToProduct.Aux[C, HF], ev : HF <:< (L => A)) extends A {
-      def eval () : A = fntp(c)(l)
-    }
+  case class ApplyA[C, L <: HList, F](c: C, l: L)(
+    implicit
+    toProduct: FnToProduct[C] :=> F,
+    ev: F <:< (L => A)
+  ) extends A {
+    def eval(): A = toProduct(c)(l)
+  }
 
   val a : A = A0()
   
@@ -53,13 +56,13 @@ object StackOverflow3 {
     def apply[T](i : Input[T]) = i.value
   }
   
-  class Preprocessor[In <: HList, Out <: HList, R](ctor : Out => R)
-    (implicit
-      mapped: Mapped.Aux[Out, Input, In],
-      mapper: Mapper.Aux[value.type, In, Out]
-    ) {
-      def apply(in : In) = ctor(in map value)
-    }
+  class Preprocessor[In <: HList, Out <: HList, R](ctor: Out => R)(
+    implicit
+    mapped: Mapped[Out, Input] :=> In,
+    mapper: Mapper[value.type, In] :=> Out
+  ) {
+    def apply(in: In): R = ctor(in.map(value))
+  }
   
   case class Foo(input1 : Int, input2 : String)
 
@@ -85,9 +88,11 @@ object StackOverflow4 extends App {
   def fun1(x: Int, y: Int) = x
   def fun2(x: Int, foo: Map[Int,String], bar: Seq[Seq[Int]]) = x
   
-  def wrap_fun[F, T <: HList, R](f : F)
-    (implicit fntp: FnToProduct.Aux[F, (Int :: T) => R], fnfp: FnFromProduct.Aux[(Int :: T) => R, F]): F =
-      ((x : Int :: T) => f.toProduct(x.head*2 :: x.tail)).fromProduct
+  def wrap_fun[F, T <: HList, R](f : F)(
+    implicit
+    toProduct: FnToProduct[F] :=> ((Int :: T) => R),
+    fromProduct: FnFromProduct[(Int :: T) => R] :=> F
+  ): F = ((x: Int :: T) => f.toProduct(x.head * 2 :: x.tail)).fromProduct
 
   val f1 = wrap_fun(fun _)
   val f2 = wrap_fun(fun1 _)

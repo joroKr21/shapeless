@@ -113,49 +113,47 @@ trait LPPrism[S, A] extends Dynamic with Serializable { self: Prism[S, A] =>
   ): mkPrism.Out = mkPrism(this)
 }
 
-trait ProductLensBuilder[C, P <: Product] extends Lens[C, P] with Serializable {
-  outer =>
-  def ~[T, L <: HList, LT <: HList, Q <: Product, QL <: HList](other: Lens[C, T])
-    (implicit
-      genp: Generic.Aux[P, L],
-      tpp: Tupler.Aux[L, P],
-      pre: Prepend.Aux[L, T :: HNil, LT],
-      tpq: Tupler.Aux[LT, Q],
-      genq: Generic.Aux[Q, QL],
-      init: Init.Aux[QL, L],
-      last: Last.Aux[QL, T]) =
-      new ProductLensBuilder[C, Q] {
-        def get(c: C): Q = (genp.to(outer.get(c)) :+ other.get(c)).tupled
-        def set(c: C)(q: Q) = {
-          val l = genq.to(q)
-          other.set(outer.set(c)(l.init.tupled))(l.last)
-        }
-      }
+trait ProductLensBuilder[C, P <: Product] extends Lens[C, P] { outer =>
+  def ~[T, L <: HList, LT <: HList, Q <: Product, QL <: HList](other: Lens[C, T])(
+    implicit
+    genp: Generic.Aux[P, L],
+    tpp: Tupler[L] :=> P,
+    pre: Prepend[L, T :: HNil] :=> LT,
+    tpq: Tupler[LT] :=> Q,
+    genq: Generic.Aux[Q, QL],
+    init: Init[QL] :=> L,
+    last: Last[QL] :=> T
+  ): ProductLensBuilder[C, Q] = new ProductLensBuilder[C, Q] {
+    def get(c: C): Q = (genp.to(outer.get(c)) :+ other.get(c)).tupled
+    def set(c: C)(q: Q) = {
+      val l = genq.to(q)
+      other.set(outer.set(c)(l.init.tupled))(l.last)
+    }
+  }
 }
 
-trait ProductPrismBuilder[C, P <: Product] extends Prism[C, P] with Serializable {
-  outer =>
-  def ~[T, L <: HList, LT <: HList, Q <: Product, QL <: HList](other: Prism[C, T])
-    (implicit
-      genp: Generic.Aux[P, L],
-      tpp: Tupler.Aux[L, P],
-      pre: Prepend.Aux[L, T :: HNil, LT],
-      tpq: Tupler.Aux[LT, Q],
-      genq: Generic.Aux[Q, QL],
-      init: Init.Aux[QL, L],
-      last: Last.Aux[QL, T]) =
-      new ProductPrismBuilder[C, Q] {
-        def get(c: C): Option[Q] = 
-          for {
-            init <- outer.get(c)
-            last <- other.get(c)
-          } yield (genp.to(init) :+ last).tupled
+trait ProductPrismBuilder[C, P <: Product] extends Prism[C, P] { outer =>
+  def ~[T, L <: HList, LT <: HList, Q <: Product, QL <: HList](other: Prism[C, T])(
+    implicit
+    genp: Generic.Aux[P, L],
+    tpp: Tupler[L] :=> P,
+    pre: Prepend[L, T :: HNil] :=> LT,
+    tpq: Tupler[LT] :=> Q,
+    genq: Generic.Aux[Q, QL],
+    init: Init[QL] :=> L,
+    last: Last[QL] :=> T
+  ): ProductPrismBuilder[C, Q] = new ProductPrismBuilder[C, Q] {
+    def get(c: C): Option[Q] =
+      for {
+        init <- outer.get(c)
+        last <- other.get(c)
+      } yield (genp.to(init) :+ last).tupled
 
-        def set(c: C)(q: Q) = {
-          val l = genq.to(q)
-          other.set(outer.set(c)(l.init.tupled))(l.last)
-        }
-      }
+    def set(c: C)(q: Q) = {
+      val l = genq.to(q)
+      other.set(outer.set(c)(l.init.tupled))(l.last)
+    }
+  }
 }
 
 object OpticDefns {
@@ -407,16 +405,17 @@ trait MkHListNthLens[L <: HList, N <: Nat] extends Serializable {
 object MkHListNthLens {
   type Aux[L <: HList, N <: Nat, Elem0] = MkHListNthLens[L, N] { type Elem = Elem0 }
 
-  implicit def mkHListNthLens[L <: HList, N <: Nat, E]
-    (implicit atx: At.Aux[L, N, E], replace: ReplaceAt.Aux[L, N, E, (E, L)]): Aux[L, N, E] =
-    new MkHListNthLens[L, N] {
-      type Elem = E
-      def apply(): Lens[L, E] =
-        new Lens[L, E] {
-          def get(l: L): E = l[N]
-          def set(l: L)(e: E): L = l.updatedAt[N](e)
-        }
+  implicit def mkHListNthLens[L <: HList, N <: Nat, E](
+    implicit
+    atx: At[L, N] :=> E,
+    replace: ReplaceAt[L, N, E] :=> (E, L)
+  ): Aux[L, N, E] = new MkHListNthLens[L, N] {
+    type Elem = E
+    def apply() = new Lens[L, E] {
+      def get(l: L) = l[N]
+      def set(l: L)(e: E) = l.updatedAt[N](e)
     }
+  }
 }
 
 trait MkHListSelectLens[L <: HList, U] extends Serializable {
@@ -424,15 +423,14 @@ trait MkHListSelectLens[L <: HList, U] extends Serializable {
 }
 
 object MkHListSelectLens {
-  implicit def mKHlistSelectLens[L <: HList, U]
-    (implicit selector: Selector[L, U], replacer: Replacer.Aux[L, U, U, (U, L)]): MkHListSelectLens[L, U] =
-      new MkHListSelectLens[L, U] {
-        def apply(): Lens[L, U] =
-          new Lens[L, U] {
-            def get(l: L) = selector(l)
-            def set(l: L)(u: U) = replacer(l, u)._2
-          }
-      }
+  implicit def mKHlistSelectLens[L <: HList, U](
+    implicit
+    selector: Selector[L, U],
+    replacer: Replacer[L, U, U] :=> (U, L)
+  ): MkHListSelectLens[L, U] = () => new Lens[L, U] {
+    def get(l: L) = selector(l)
+    def set(l: L)(u: U) = replacer(l, u)._2
+  }
 }
 
 trait MkCoproductSelectPrism[C <: Coproduct, T] extends Serializable {

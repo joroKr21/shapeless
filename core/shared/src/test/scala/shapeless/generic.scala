@@ -76,7 +76,7 @@ package GenericTestsAux {
   object star extends starLP {
     implicit def caseString = at[String](_+"*")
 
-    implicit def caseIso[T, L <: HList](implicit gen: Generic.Aux[T, L], mapper: => hl.Mapper.Aux[this.type, L, L]) =
+    implicit def caseIso[T, L <: HList](implicit gen: Generic.Aux[T, L], mapper: => hl.Mapper[this.type, L] :=> L) =
       at[T](t => gen.from(mapper(gen.to(t))))
   }
 
@@ -87,10 +87,10 @@ package GenericTestsAux {
   object inc extends incLP {
     implicit val caseInt = at[Int](_+1)
 
-    implicit def caseProduct[T, L <: HList](implicit gen: Generic.Aux[T, L], mapper: hl.Mapper.Aux[this.type, L, L]) =
+    implicit def caseProduct[T, L <: HList](implicit gen: Generic.Aux[T, L], mapper: hl.Mapper[this.type, L] :=> L) =
       at[T](t => gen.from(gen.to(t).map(inc)))
 
-    implicit def caseCoproduct[T, L <: Coproduct](implicit gen: Generic.Aux[T, L], mapper: cp.Mapper.Aux[this.type, L, L]) =
+    implicit def caseCoproduct[T, L <: Coproduct](implicit gen: Generic.Aux[T, L], mapper: cp.Mapper[this.type, L] :=> L) =
       at[T](t => gen.from(gen.to(t).map(inc)))
   }
 

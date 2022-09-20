@@ -55,12 +55,13 @@ object zipper {
 
     type Aux[Z, Out0] = First[Z] { type Out = Out0 }
 
-    implicit def first[C, L <: HList, R <: HList, RP <: HList, P]
-      (implicit rp: ReversePrepend.Aux[L, R, RP]): Aux[Zipper[C, L, R, P], Zipper[C, HNil, RP, P]] =
-        new First[Zipper[C, L, R, P]] {
-          type Out = Zipper[C, HNil, RP, P]
-          def apply(z: Zipper[C, L, R, P]) = Zipper(HNil, z.prefix reverse_::: z.suffix, z.parent)
-        }
+    implicit def first[C, L <: HList, R <: HList, RP <: HList, P](
+      implicit rp: ReversePrepend[L, R] :=> RP
+    ): Aux[Zipper[C, L, R, P], Zipper[C, HNil, RP, P]] =
+      new First[Zipper[C, L, R, P]] {
+        type Out = Zipper[C, HNil, RP, P]
+        def apply(z: Zipper[C, L, R, P]) = Zipper(HNil, z.prefix reverse_::: z.suffix, z.parent)
+      }
   }
 
   trait Last[Z] extends DepFn1[Z] with Serializable
@@ -70,12 +71,13 @@ object zipper {
 
     type Aux[Z, Out0] = Last[Z] { type Out = Out0 }
 
-    implicit def last[C, L <: HList, R <: HList, RP <: HList, P]
-      (implicit rp: ReversePrepend.Aux[R, L, RP]): Aux[Zipper[C, L, R, P], Zipper[C, RP, HNil, P]] =
-        new Last[Zipper[C, L, R, P]] {
-          type Out = Zipper[C, RP, HNil, P]
-          def apply(z: Zipper[C, L, R, P]) = Zipper(z.suffix reverse_::: z.prefix, HNil, z.parent)
-        }
+    implicit def last[C, L <: HList, R <: HList, RP <: HList, P](
+      implicit rp: ReversePrepend[R, L] :=> RP
+    ): Aux[Zipper[C, L, R, P], Zipper[C, RP, HNil, P]] =
+      new Last[Zipper[C, L, R, P]] {
+        type Out = Zipper[C, RP, HNil, P]
+        def apply(z: Zipper[C, L, R, P]) = Zipper(z.suffix reverse_::: z.prefix, HNil, z.parent)
+      }
   }
 
   trait RightBy[Z, N <: Nat] extends DepFn1[Z] with Serializable
@@ -242,21 +244,23 @@ object zipper {
 
     type Aux[Z, E, Out0] = Put[Z, E] { type Out = Out0 }
 
-    implicit def genericPut[C, L <: HList, RH, RT <: HList, P, E, CL <: HList]
-      (implicit
-        gen: Generic.Aux[C, CL],
-        rp: ReversePrepend.Aux[L, E :: RT, CL]): Aux[Zipper[C, L, RH :: RT, P], E, Zipper[C, L, E :: RT, P]] =
-        new Put[Zipper[C, L, RH :: RT, P], E] {
-          type Out = Zipper[C, L, E :: RT, P]
-          def apply(z: Zipper[C, L, RH :: RT, P], e: E) = Zipper(z.prefix, e :: z.suffix.tail, z.parent)
-        }
+    implicit def genericPut[C, L <: HList, RH, RT <: HList, P, E, CL <: HList](
+      implicit
+      gen: Generic.Aux[C, CL],
+      rp: ReversePrepend[L, E :: RT] :=> CL
+    ): Aux[Zipper[C, L, RH :: RT, P], E, Zipper[C, L, E :: RT, P]] =
+      new Put[Zipper[C, L, RH :: RT, P], E] {
+        type Out = Zipper[C, L, E :: RT, P]
+        def apply(z: Zipper[C, L, RH :: RT, P], e: E) = Zipper(z.prefix, e :: z.suffix.tail, z.parent)
+      }
 
-    implicit def hlistPut[C <: HList, L <: HList, RH, RT <: HList, P, E, CL <: HList]
-      (implicit rp: ReversePrepend.Aux[L, E :: RT, CL]): Aux[Zipper[C, L, RH :: RT, P], E, Zipper[CL, L, E :: RT, P]] =
-        new Put[Zipper[C, L, RH :: RT, P], E] {
-          type Out = Zipper[CL, L, E :: RT, P]
-          def apply(z: Zipper[C, L, RH :: RT, P], e: E) = Zipper(z.prefix, e :: z.suffix.tail, z.parent)
-        }
+    implicit def hlistPut[C <: HList, L <: HList, RH, RT <: HList, P, E, CL <: HList](
+      implicit rp: ReversePrepend[L, E :: RT] :=> CL
+    ): Aux[Zipper[C, L, RH :: RT, P], E, Zipper[CL, L, E :: RT, P]] =
+      new Put[Zipper[C, L, RH :: RT, P], E] {
+        type Out = Zipper[CL, L, E :: RT, P]
+        def apply(z: Zipper[C, L, RH :: RT, P], e: E) = Zipper(z.prefix, e :: z.suffix.tail, z.parent)
+      }
   }
 
   trait Modify[Z, E1, E2] extends DepFn2[Z, E1 => E2] with Serializable
@@ -284,12 +288,13 @@ object zipper {
 
     type Aux[Z, E, Out0] = Insert[Z, E] { type Out = Out0 }
 
-    implicit def hlistInsert[C <: HList, L <: HList, R <: HList, P, E, CL <: HList]
-      (implicit rp: ReversePrepend.Aux[E :: L, R, CL]): Aux[Zipper[C, L, R, P], E, Zipper[CL, E :: L, R, P]] =
-        new Insert[Zipper[C, L, R, P], E] {
-          type Out = Zipper[CL, E :: L, R, P]
-          def apply(z: Zipper[C, L, R, P], e: E) = Zipper(e :: z.prefix, z.suffix, z.parent)
-        }
+    implicit def hlistInsert[C <: HList, L <: HList, R <: HList, P, E, CL <: HList](
+      implicit rp: ReversePrepend[E :: L, R] :=> CL
+    ): Aux[Zipper[C, L, R, P], E, Zipper[CL, E :: L, R, P]] =
+      new Insert[Zipper[C, L, R, P], E] {
+        type Out = Zipper[CL, E :: L, R, P]
+        def apply(z: Zipper[C, L, R, P], e: E) = Zipper(e :: z.prefix, z.suffix, z.parent)
+      }
   }
 
   trait Delete[Z] extends DepFn1[Z] with Serializable
@@ -299,12 +304,13 @@ object zipper {
 
     type Aux[Z, Out0] = Delete[Z] { type Out = Out0 }
 
-    implicit def hlistDelete[C <: HList, L <: HList, RH, RT <: HList, P, CL <: HList]
-      (implicit rp: ReversePrepend.Aux[L, RT, CL]): Aux[Zipper[C, L, RH :: RT, P], Zipper[CL, L, RT, P]] =
-        new Delete[Zipper[C, L, RH :: RT, P]] {
-          type Out = Zipper[CL, L, RT, P]
-          def apply(z: Zipper[C, L, RH :: RT, P]) = Zipper(z.prefix, z.suffix.tail, z.parent)
-        }
+    implicit def hlistDelete[C <: HList, L <: HList, RH, RT <: HList, P, CL <: HList](
+      implicit rp: ReversePrepend[L, RT] :=> CL
+    ): Aux[Zipper[C, L, RH :: RT, P], Zipper[CL, L, RT, P]] =
+      new Delete[Zipper[C, L, RH :: RT, P]] {
+        type Out = Zipper[CL, L, RT, P]
+        def apply(z: Zipper[C, L, RH :: RT, P]) = Zipper(z.prefix, z.suffix.tail, z.parent)
+      }
   }
 
   trait Reify[Z] extends DepFn1[Z] with Serializable
@@ -314,20 +320,22 @@ object zipper {
 
     type Aux[Z, Out0] = Reify[Z] { type Out = Out0 }
 
-    implicit def hlistReify[LR <: HList, L <: HList, R <: HList, P]
-      (implicit rp: ReversePrepend.Aux[L, R, LR]): Aux[Zipper[LR, L, R, P], LR] =
-        new Reify[Zipper[LR, L, R, P]] {
-          type Out = LR
-          def apply(z: Zipper[LR, L, R, P]) = z.prefix reverse_::: z.suffix
-        }
+    implicit def hlistReify[LR <: HList, L <: HList, R <: HList, P](
+      implicit rp: ReversePrepend[L, R] :=> LR
+    ): Aux[Zipper[LR, L, R, P], LR] =
+      new Reify[Zipper[LR, L, R, P]] {
+        type Out = LR
+        def apply(z: Zipper[LR, L, R, P]) = z.prefix reverse_::: z.suffix
+      }
 
-    implicit def genericReify[C, L <: HList, R <: HList, P, CL <: HList]
-      (implicit
-        gen: Generic.Aux[C, CL],
-        rp: ReversePrepend.Aux[L, R, CL]): Aux[Zipper[C, L, R, P], C] =
-        new Reify[Zipper[C, L, R, P]] {
-          type Out = C
-          def apply(z: Zipper[C, L, R, P]) = gen.from(z.prefix reverse_::: z.suffix)
-        }
+    implicit def genericReify[C, L <: HList, R <: HList, P, CL <: HList](
+      implicit
+      gen: Generic.Aux[C, CL],
+      rp: ReversePrepend[L, R] :=> CL
+    ): Aux[Zipper[C, L, R, P], C] =
+      new Reify[Zipper[C, L, R, P]] {
+        type Out = C
+        def apply(z: Zipper[C, L, R, P]) = gen.from(z.prefix reverse_::: z.suffix)
+      }
   }
 }

@@ -27,18 +27,17 @@ object Lift extends App {
   /**
    * Lifts a function of arbitrary arity into `Option`. 
    */
-  def liftO[InF, InL <: HList, R, OInL <: HList, OutF](f :  InF)
-    (implicit
-      fntop  : FnToProduct.Aux[InF, InL => R],
-      mapped : Mapped.Aux[InL, Option, OInL],
-      mapper : Mapper.Aux[get.type, OInL, InL],
-      folder : MapFolder[OInL, Boolean, isDefined.type],
-      fnfromp: FnFromProduct.Aux[OInL => Option[R], OutF]
-    ) : OutF = {
-      (o : OInL) =>
-        if(o.foldMap(true)(isDefined)(_ && _)) Some(f.toProduct(o map get))
-        else None
-    }.fromProduct
+  def liftO[InF, InL <: HList, R, OInL <: HList, OutF](f: InF)(
+    implicit
+    fntop: FnToProduct[InF] :=> (InL => R),
+    mapped: Mapped[InL, Option] :=> OInL,
+    mapper: Mapper[get.type, OInL] :=> InL,
+    folder: MapFolder[OInL, Boolean, isDefined.type],
+    fnfromp: FnFromProduct[OInL => Option[R]] :=> OutF
+  ): OutF = { (o: OInL) =>
+    if (o.foldMap(true)(isDefined)(_ && _)) Some(f.toProduct(o map get))
+    else None
+  }.fromProduct
 
   object isDefined extends (Option ~>> Boolean) {
     def apply[T](o : Option[T]) = o.isDefined

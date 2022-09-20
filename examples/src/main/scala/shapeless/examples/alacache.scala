@@ -157,31 +157,31 @@ trait CachedCaseClassDefns extends
 
   val ops: CaseClassOps
 
-  def Ops[Repr0 <: HList, LRepr0 <: HList, P0 <: Product, N <: Nat]
-    (implicit
-      gen0: Generic.Aux[C, Repr0],
-      lgen0: LabelledGeneric.Aux[C, LRepr0],
-      len: Length.Aux[Repr0, N],
-      toInt: ToInt[N],
-      tup: Tupler.Aux[Repr0, P0],
-      pgen0: Generic.Aux[P0, Repr0],
-      typ0: Typeable[C],
-      tag0: ClassTag[C]
-    ) = {
-      val fqn = tag0.runtimeClass.getName
-      new CaseClassOps {
-        type Repr = Repr0
-        type LRepr = LRepr0
-        type P = P0
-        val gen = gen0
-        val lgen = lgen0
-        val pgen = pgen0
-        val typ = typ0
-        val tag = tag0
-        val logger = Logger.getLogger(fqn)
-        val productPrefix = fqn.split("(\\.|\\$)").last
-        val productArity = toInt()
-      }
+  def Ops[Repr0 <: HList, LRepr0 <: HList, P0 <: Product, N <: Nat](
+    implicit
+    gen0: Generic.Aux[C, Repr0],
+    lgen0: LabelledGeneric.Aux[C, LRepr0],
+    len: Length[Repr0] :=> N,
+    toInt: ToInt[N],
+    tup: Tupler[Repr0] :=> P0,
+    pgen0: Generic.Aux[P0, Repr0],
+    typ0: Typeable[C],
+    tag0: ClassTag[C]
+  ) = {
+    val fqn = tag0.runtimeClass.getName
+    new CaseClassOps {
+      type Repr = Repr0
+      type LRepr = LRepr0
+      type P = P0
+      val gen = gen0
+      val lgen = lgen0
+      val pgen = pgen0
+      val typ = typ0
+      val tag = tag0
+      val logger = Logger.getLogger(fqn)
+      val productPrefix = fqn.split("(\\.|\\$)").last
+      val productArity = toInt()
+    }
   }
 }
 

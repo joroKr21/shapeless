@@ -220,7 +220,10 @@ package recursionschemes {
 
         object tupled {
           def unapply[C <: Coproduct, R <: HList, V <: HList, P](c: C)(
-            implicit sel: Selector.Aux[C, K, R], vals: Values.Aux[R, V], tuple: Tupler.Aux[V, P]
+            implicit
+            sel: Selector.Aux[C, K, R],
+            vals: Values[R] :=> V,
+            tuple: Tupler[V] :=> P
           ): Option[P] = for (r <- sel(c)) yield tuple(vals(r))
         }
 

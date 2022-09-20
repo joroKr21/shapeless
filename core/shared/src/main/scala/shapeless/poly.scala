@@ -24,6 +24,10 @@ import reflect.macros.whitebox
 object PolyDefns extends Cases {
   import shapeless.ops.{ hlist => hl }
 
+  type @=>[C <: Case[_, _], R] = C {
+    type Result = R
+  }
+
   /**
    * Type-specific case of a polymorphic function.
    *
@@ -33,20 +37,21 @@ object PolyDefns extends Cases {
     type Result
     val value : L => Result
 
-    def apply(t : L) = value(t)
-    def apply()(implicit ev: HNil =:= L) = value(HNil)
-    def apply[T](t: T)(implicit ev: (T :: HNil) =:= L) = value(t :: HNil)
-    def apply[T, U](t: T, u: U)(implicit ev: (T :: U :: HNil) =:= L) = value(t :: u :: HNil)
+    def apply(t: L): Result = value(t)
+    def apply()(implicit ev: HNil =:= L): Result = value(HNil)
+    def apply[T](t: T)(implicit ev: (T :: HNil) =:= L): Result = value(t :: HNil)
+    def apply[T, U](t: T, u: U)(implicit ev: (T :: U :: HNil) =:= L): Result = value(t :: u :: HNil)
   }
 
   object Case extends CaseInst {
-    type Aux[P, L <: HList, Result0] = Case[P, L] { type Result = Result0 }
-    type Hom[P, T] = Aux[P, T :: HNil, T]
+    type Aux[P, L <: HList, Result] = Case[P, L] @=> Result
+    type Hom[P, T] = Case[P, T :: HNil] @=> T
 
-    def apply[P, L <: HList, R](v : L => R): Aux[P, L, R] = new Case[P, L] {
-      type Result = R
-      val value = v
-    }
+    def apply[P, L <: HList, R](v : L => R): Case[P, L] @=> R =
+      new Case[P, L] {
+        type Result = R
+        val value = v
+      }
 
     implicit def materializeFromValue1[P, F[_], T]: Case[P, F[T] :: HNil] =
       macro PolyMacros.materializeFromValueImpl[P, F[T], T]
@@ -57,11 +62,12 @@ object PolyDefns extends Cases {
 
   type Case0[P] = Case[P, HNil]
   object Case0 {
-    type Aux[P, T] = Case.Aux[P, HNil, T]
-    def apply[P, T](v : T): Aux[P, T] = new Case[P, HNil] {
-      type Result = T
-      val value = (l : HNil) => v
-    }
+    type Aux[P, T] = Case[P, HNil] @=> T
+    def apply[P, T](v : T): Case0[P] @=> T =
+      new Case[P, HNil] {
+        type Result = T
+        val value = (l : HNil) => v
+      }
   }
 
   /**
@@ -70,13 +76,17 @@ object PolyDefns extends Cases {
    * @author Miles Sabin
    */
   class Compose[F, G](f : F, g : G) extends Poly
-
   object Compose {
-    implicit def composeCase[C, F <: Poly, G <: Poly, T, U, V]
-      (implicit unpack: Unpack2[C, Compose, F, G], cG : Case1.Aux[G, T, U], cF : Case1.Aux[F, U, V]) = new Case[C, T :: HNil] {
-      type Result = V
-      val value = (t : T :: HNil) => cF(cG.value(t))
-    }
+    implicit def composeCase[C, F <: Poly, G <: Poly, T, U, V](
+      implicit
+      unpack: Unpack2[C, Compose, F, G],
+      cG: Case1.Aux[G, T, U],
+      cF : Case1.Aux[F, U, V]
+    ): Case1[C, T] @=> V =
+      new Case[C, T :: HNil] {
+        type Result = V
+        val value = (t : T :: HNil) => cF(cG.value(t))
+      }
   }
 
   /**
@@ -105,7 +115,7 @@ object PolyDefns extends Cases {
 
   object RotateRight {
     implicit def rotateLeftCase[C, P <: Poly, N <: Nat, L <: HList, LOut, RL <: HList]
-      (implicit unpack: Unpack2[C, RotateRight, P, N], rotateLeft: hl.RotateLeft.Aux[RL, N, L], cP: Case.Aux[P, L, LOut])
+      (implicit unpack: Unpack2[C, RotateRight, P, N], rotateLeft: hl.RotateLeft[RL, N] :=> L, cP: Case.Aux[P, L, LOut])
         : Case.Aux[C, RL, LOut] = new Case[C, RL] {
         type Result = LOut
 
@@ -144,25 +154,23 @@ object PolyDefns extends Cases {
       constraint: Self <:< Curried[F, ParameterAccumulator],
       witnessSelf: Witness.Aux[Self],
       finalCall: Case[F, AllParameters],
-      length: ops.hlist.Length.Aux[CurrentParameter :: ParameterAccumulator, CurrentLength],
+      length: ops.hlist.Length[CurrentParameter :: ParameterAccumulator] :=> CurrentLength,
       reverseSplit: ops.hlist.ReverseSplit.Aux[AllParameters, CurrentLength, CurrentParameter :: ParameterAccumulator, RestParameters],
       hasRestParameters: RestParameters <:< (_ :: _)
-    ): Case1.Aux[Self, CurrentParameter, Curried[F, CurrentParameter :: ParameterAccumulator]] = Case1 {
-      nextParameter: CurrentParameter =>
-        Curried[F, CurrentParameter :: ParameterAccumulator](nextParameter :: witnessSelf.value.parameters)
+    ): Case1[Self, CurrentParameter] @=> Curried[F, CurrentParameter :: ParameterAccumulator] = Case1 {
+      nextParameter => Curried(nextParameter :: witnessSelf.value.parameters)
     }
   }
 
   object Curried extends LowPriorityCurried {
-    implicit def lastParameter[Self, F, LastParameter, ParameterAccumulator <: HList, AllParameters <: HList, Result0](
+    implicit def lastParameter[Self, F, LastParameter, ParameterAccumulator <: HList, AllParameters <: HList, Result](
         implicit
         constraint: Self <:< Curried[F, ParameterAccumulator],
         witnessSelf: Witness.Aux[Self],
-        reverse: ops.hlist.Reverse.Aux[LastParameter :: ParameterAccumulator, AllParameters],
-        finalCall: Case.Aux[F, AllParameters, Result0]
-    ): Case1.Aux[Self, LastParameter, Result0] = Case1 {
-      lastParameter: LastParameter =>
-        finalCall(reverse(lastParameter :: witnessSelf.value.parameters))
+        reverse: ops.hlist.Reverse[LastParameter :: ParameterAccumulator] :=> AllParameters,
+        finalCall: Case[F, AllParameters] @=> Result
+    ): Case1[Self, LastParameter] @=> Result = Case1 {
+      lastParameter => finalCall(reverse(lastParameter :: witnessSelf.value.parameters))
     }
   }
 
@@ -276,11 +284,10 @@ trait Poly extends PolyApply with Serializable {
 
   object CaseBuilder extends LowPriorityCaseBuilder {
     import ops.function.FnToProduct
-    implicit def fnCaseBuilder[F, H, T <: HList, Result]
-      (implicit fntp: FnToProduct.Aux[F, ((H :: T) => Result)]): CaseBuilder[F, H :: T, Result] =
-        new CaseBuilder[F, H :: T, Result] {
-          def apply(f: F) = ProductCase((l : H :: T) => fntp(f)(l))
-        }
+    implicit def fnCaseBuilder[F, H, T <: HList, Result](
+      implicit fntp: FnToProduct[F] :=> ((H :: T) => Result)
+    ): CaseBuilder[F, H :: T, Result] =
+      f => ProductCase((l: H :: T) => fntp(f)(l))
   }
 
   def caseAt[L <: HList](implicit c: ProductCase[L]) = c

@@ -24,19 +24,20 @@ object function {
    * 
    * @author Miles Sabin
    */
-  trait FnToProduct[-F] extends Serializable {
+  trait FnToProduct[-F] extends DepFn1[F] {
     type Out
     def apply(f: F): Out
   }
 
   object FnToProduct extends FnToProductInstances {
-    type Aux[F, P] = FnToProduct[F] { type Out = P }
-    def apply[F <: AnyRef](implicit fntop: FnToProduct[F]): Aux[F, fntop.Out] = fntop
+    type Aux[F, P] = FnToProduct[F] :=> P
+    def apply[F <: AnyRef](implicit to: FnToProduct[F]): to.type = to
 
-    private[shapeless] def instance[F, P](toProduct: F => P): Aux[F, P] = new FnToProduct[F] {
-      type Out = P
-      def apply(f: F) = toProduct(f)
-    }
+    private[shapeless] def instance[F, P](toProduct: F => P): FnToProduct[F] :=> P =
+      new FnToProduct[F] {
+        type Out = P
+        def apply(f: F) = toProduct(f)
+      }
   }
 
   /**
@@ -44,15 +45,16 @@ object function {
    * 
    * @author Miles Sabin
    */
-  trait FnFromProduct[F] extends DepFn1[F] with Serializable
+  trait FnFromProduct[F] extends DepFn1[F]
     
   object FnFromProduct extends FnFromProductInstances {
-    type Aux[F, O] = FnFromProduct[F] { type Out = O }
-    def apply[F](implicit fnfromp: FnFromProduct[F]): Aux[F, fnfromp.Out] = fnfromp
+    type Aux[F, O] = FnFromProduct[F] :=> O
+    def apply[F](implicit from: FnFromProduct[F]): from.type = from
 
-    private[shapeless] def instance[P, F](fromProduct: P => F): Aux[P, F] = new FnFromProduct[P] {
-      type Out = F
-      def apply(f: P) = fromProduct(f)
-    }
+    private[shapeless] def instance[P, F](fromProduct: P => F): FnFromProduct[P] :=> F =
+      new FnFromProduct[P] {
+        type Out = F
+        def apply(f: P) = fromProduct(f)
+      }
   }
 }

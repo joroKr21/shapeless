@@ -204,7 +204,8 @@ final class HListOps[L <: HList](l : L) extends Serializable {
   def reinsert[O <: HList] = new ReinsertAux[O]
 
   class ReinsertAux[O <: HList] {
-    def apply[U](u: U)(implicit remove: Remove.Aux[O, U, (U, L)]): O = remove.reinsert((u, l))
+    def apply[U](u: U)(implicit remove: Remove[O, U] :=> (U, L)): O =
+      remove.reinsert((u, l))
   }
 
   /**
@@ -213,7 +214,8 @@ final class HListOps[L <: HList](l : L) extends Serializable {
   def reinsertAll[O <: HList] = new ReinsertAllAux[O]
 
   class ReinsertAllAux[O <: HList] {
-    def apply[SL <: HList](sl: SL)(implicit removeAll: RemoveAll.Aux[O, SL, (SL, L)]): O = removeAll.reinsert((sl, l))
+    def apply[SL <: HList](sl: SL)(implicit removeAll: RemoveAll[O, SL] :=> (SL, L)): O =
+      removeAll.reinsert((sl, l))
   }
 
   /**
@@ -241,15 +243,15 @@ final class HListOps[L <: HList](l : L) extends Serializable {
    * The `Elem` suffix is here to avoid creating an ambiguity with RecordOps#updated and should be removed if
    * SI-5414 is resolved in a way which eliminates the ambiguity.
    */
-  def updatedElem[U, Out <: HList](u : U)
-    (implicit replacer : Replacer.Aux[L, U, U, (U, Out)]) : Out = replacer(l, u)._2
+  def updatedElem[U, Out <: HList](u: U)(implicit replacer: Replacer[L, U, U] :=> (U, Out)): Out =
+    replacer(l, u)._2
 
   /**
    * Replaces the first element of type `U` of this `HList` with the result of its transformation to a `V` via the
    * supplied function. Available only if there is evidence that this `HList` has an element of type `U`.
    */
-  def updateWith[U, V, Out <: HList](f : U => V)
-    (implicit replacer : Modifier.Aux[L, U, V, (U, Out)]) : Out = replacer.apply(l, f)._2
+  def updateWith[U, V, Out <: HList](f: U => V)(implicit modifier: Modifier[L, U, V] :=> (U, Out)): Out =
+    modifier(l, f)._2
 
   /**
    * Replaces the `N`th element of this `HList` with the result of calling the supplied function on it.
@@ -261,8 +263,8 @@ final class HListOps[L <: HList](l : L) extends Serializable {
     (implicit upd: ModifierAt[L, n.N, n.instance.Out, V]): upd.Out = upd(l, f)
 
   class UpdatedTypeAux[U] {
-    def apply[V, Out <: HList](v : V)
-      (implicit replacer : Replacer.Aux[L, U, V, (U, Out)]) : Out = replacer(l, v)._2
+    def apply[V, Out <: HList](v: V)(implicit replacer: Replacer[L, U, V] :=> (U, Out)): Out =
+      replacer(l, v)._2
   }
 
   /**
@@ -273,7 +275,8 @@ final class HListOps[L <: HList](l : L) extends Serializable {
   def updatedType[U] = new UpdatedTypeAux[U]
 
   class UpdatedAtAux[N <: Nat] {
-    def apply[U, V, Out <: HList](u : U)(implicit replacer : ReplaceAt.Aux[L, N, U, (V, Out)]) : Out = replacer(l, u)._2
+    def apply[U, V, Out <: HList](u: U)(implicit replacer: ReplaceAt[L, N, U] :=> (V, Out)): Out =
+      replacer(l, u)._2
   }
 
   /**
@@ -286,7 +289,8 @@ final class HListOps[L <: HList](l : L) extends Serializable {
    * Replaces the ''nth' element of this `HList` with the supplied value of type `U`. Available only if there is
    * evidence that this `HList` has at least ''n'' elements.
    */
-  def updatedAt[U, V, Out <: HList](n: Nat, u : U)(implicit replacer : ReplaceAt.Aux[L, n.N, U, (V, Out)]) : Out = replacer(l, u)._2
+  def updatedAt[U, V, Out <: HList](n: Nat, u: U)(implicit replacer: ReplaceAt[L, n.N, U] :=> (V, Out)): Out =
+    replacer(l, u)._2
 
   /**
    * Returns the first ''n'' elements of this `HList`. An explicit type argument must be provided. Available only if

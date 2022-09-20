@@ -156,11 +156,11 @@ class NatTests {
     val e3 = pow[_2, _4]
     check(16)(e3)
 
-    implicitly[Range.Aux[_0,_0, HNil]]
-    implicitly[Range.Aux[_0,_2, _0::_1::HNil]]
-    implicitly[Range.Aux[_1,_1, HNil]]
-    implicitly[Range.Aux[_1,_2,_1::HNil]]
-    implicitly[Range.Aux[_1,_4, _1::_2::_3::HNil]]
+    implicitly[Range[_0,_0] :=> HNil]
+    implicitly[Range[_0,_2] :=> (_0::_1::HNil)]
+    implicitly[Range[_1,_1] :=> HNil]
+    implicitly[Range[_1,_2] :=> (_1::HNil)]
+    implicitly[Range[_1,_4] :=> (_1::_2::_3::HNil)]
 
     val r1 = the[Range[_0,_0]]
     val r2 = the[Range[_0,_1]]

@@ -109,20 +109,29 @@ object TypeLevelBacktrack extends App {
   }
 
   object AllAncestors extends AllAncestorsLowPrio {
-    implicit def fatherSide[F, P, PA <: HList]
-      (implicit m: FatherOf[F, P], a: AllAncestors[F, PA]) = new AllAncestors[P, F :: PA] {}
+    implicit def fatherSide[F, P, PA <: HList](
+      implicit
+      m: FatherOf[F, P],
+      a: AllAncestors[F, PA]
+    ): AllAncestors[P, F :: PA] =
+      new AllAncestors[P, F :: PA] {}
 
-    implicit def motherSide[M, P, PA <: HList]
-      (implicit m: MotherOf[M, P], a: AllAncestors[M, PA]) = new AllAncestors[P, M :: PA] {}
+    implicit def motherSide[M, P, PA <: HList](
+      implicit
+      m: MotherOf[M, P],
+      a: AllAncestors[M, PA]
+    ): AllAncestors[P, M :: PA] =
+      new AllAncestors[P, M :: PA] {}
 
-    implicit def bothSides[F, M, P, FA <: HList, MA <: HList, CA <: HList]
-      (implicit
-        l: FatherOf[F, P],
-        r: MotherOf[M, P],
-        f: AllAncestors[F, FA],
-        m: AllAncestors[M, MA],
-        p: Prepend.Aux[FA, MA, CA]
-      ) = new AllAncestors[P, F :: M :: CA] {}
+    implicit def bothSides[F, M, P, FA <: HList, MA <: HList, CA <: HList](
+      implicit
+      l: FatherOf[F, P],
+      r: MotherOf[M, P],
+      f: AllAncestors[F, FA],
+      m: AllAncestors[M, MA],
+      p: Prepend[FA, MA] :=> CA
+    ): AllAncestors[P, F :: M :: CA] =
+      new AllAncestors[P, F :: M :: CA] {}
   }
 
   /** Typeclass witnessing family relationship between [[P2]] and [[P1]]. */

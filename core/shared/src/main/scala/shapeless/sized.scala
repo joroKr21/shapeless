@@ -185,7 +185,7 @@ class SizedOps[A0, Repr : AdditiveCollection, L <: Nat](s : Sized[Repr, L], itl:
   /**
    * Converts this `Sized` to a tuple whose elements have the same type as in `Repr`.
    */
-  def tupled[L0 <: HList, T](implicit hl: ToHList.Aux[Repr, L, L0], t: Tupler.Aux[L0, T]): T = t(hl(s))
+  def tupled[L0 <: HList, T](implicit hl: ToHList[Repr, L] :=> L0, t: Tupler[L0] :=> T): T = t(hl(s))
 }
 
 trait LowPrioritySized {

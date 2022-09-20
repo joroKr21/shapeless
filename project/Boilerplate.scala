@@ -141,12 +141,11 @@ object Boilerplate {
         -
         -  implicit def hlistTupler$arity[
         -    ${`A..N`}
-        -  ]: Tupler.Aux[
-        -    ${`A::N`},
-        -    ${`(A..N)`}
-        -  ] = Tupler.instance { case ${`a::n`} =>
-        -    ${`(a..n)`}
-        -  }
+        -  ]: Tupler[${`A::N`}] :=>
+        -    ${`(A..N)`} = Tupler.instance {
+        -      case ${`a::n`} =>
+        -        ${`(a..n)`}
+        -    }
         |}
       """
     }      
@@ -174,10 +173,10 @@ object Boilerplate {
         -
         -  implicit def fnToProduct$arity[
         -    ${`A..N,Res`}
-        -  ]: FnToProduct.Aux[
-        -    ($fnType),
-        -    $hlistFnType
-        -  ] = FnToProduct.instance(fn => $fnBody)
+        -  ]: FnToProduct[$fnType] :=>
+        -    ($hlistFnType) = FnToProduct.instance { fn =>
+        -      $fnBody
+        -    }
         |}
       """
     }
@@ -202,13 +201,10 @@ object Boilerplate {
         -
         -  implicit def fnFromProduct$arity[
         -    ${`A..N,Res`}
-        -  ]: FnFromProduct.Aux[
-        -    $hlistFnType,
-        -    $fnType
-        -  ] = FnFromProduct.instance { hf =>
-        -    (${`a:A..n:N`}) =>
-        -      hf(${`a::n`})
-        -  }
+        -  ]: FnFromProduct[$hlistFnType] :=>
+        -    ($fnType) = FnFromProduct.instance { hf =>
+        -      (${`a:A..n:N`}) => hf(${`a::n`})
+        -    }
         |}
       """
     }

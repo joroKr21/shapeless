@@ -25,23 +25,23 @@ object sized {
    *
    * @author Alexandre Archambault
    */
-  trait ToHList[-Repr, L <: Nat] extends Serializable {
+  trait ToHList[-Repr, L <: Nat] extends DepFn1[Sized[Repr, L]] {
     type Out <: HList
     def apply(s: Sized[Repr, L]): Out
   }
 
   object ToHList {
-    type Aux[-Repr, L <: Nat, O <: HList] = ToHList[Repr, L] {
-      type Out = O
-    }
+    type Aux[-Repr, L <: Nat, O <: HList] = ToHList[Repr, L] { type Out = O }
 
     implicit def instance[Repr, T, N <: Nat, O <: HList](
-      implicit itl: IsRegularIterable[Repr] { type A = T },
-      fill: Fill.Aux[N, T, O]
-    ): Aux[Repr, N, O] = new ToHList[Repr, N] {
-      type Out = O
-      def apply(s: Sized[Repr, N]): O =
-        itl(s.unsized).foldRight[HList](HNil)(_ :: _).asInstanceOf[O]
-    }
+      implicit
+      itl: IsRegularIterable[Repr] { type A = T },
+      fill: Fill[N, T] :=> O
+    ): ToHList[Repr, N] :=> O =
+      new ToHList[Repr, N] {
+        type Out = O
+        def apply(s: Sized[Repr, N]) =
+          itl(s.unsized).foldRight[HList](HNil)(_ :: _).asInstanceOf[O]
+      }
   }
 }

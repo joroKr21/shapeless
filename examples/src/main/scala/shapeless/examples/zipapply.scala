@@ -111,11 +111,11 @@ object ZipApplyExamples extends App {
       * @tparam Arguments  The type of the [[HList]] of arguments. Again, this can be inferred since it must be concrete
       *                    at the call site.
       * @tparam FCombined  The type of the [[HList]] of pairs zipped from [[Functions1]] and [[Functions2]]. This gets
-      *                    inferred thanks to the use of [[Zip.Aux]].
+      *                    inferred thanks to the use of [[Zip]] with [[:=>]].
       * @tparam FComposed  The type of the [[HList]] of composed functions from [[Functions1]] and [[Functions2]]. This
-      *                    gets inferred thanks to the use of [[Mapper.Aux]].
+      *                    gets inferred thanks to the use of [[Mapper]] with [[:=>]].
       * @tparam Output     The type of the [[HList]] of results from applying [[FComposed]] to [[Arguments]]. This gets
-      *                    inferred thanks to the use of [[ZipApply.Aux]].
+      *                    inferred thanks to the use of [[ZipApply]] with [[:=>]].
       *
       * @return The results of applying the composed functions to the corresponding arguments, as an HList.
       */
@@ -129,10 +129,11 @@ object ZipApplyExamples extends App {
     ](
       f1: Functions1,
       f2: Functions2,
-      a: Arguments)(implicit
-      zip: Zip.Aux[Functions1 :: Functions2 :: HNil, FCombined],
-      mapCompose: Mapper.Aux[compose.type, FCombined, FComposed],
-      zipApply: ZipApply.Aux[FComposed, Arguments, Output]
+      a: Arguments
+    )(implicit
+      zip: Zip[Functions1 :: Functions2 :: HNil] :=> FCombined,
+      mapCompose: Mapper[compose.type, FCombined] :=> FComposed,
+      zipApply: ZipApply[FComposed, Arguments] :=> Output
     ): Output = zipApply(mapCompose(zip(f1 :: f2 :: HNil)), a)
 
     /**

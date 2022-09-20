@@ -24,7 +24,7 @@ object traversable {
    * @author Miles Sabin
    */
   trait FromTraversable[Out <: HList] extends Serializable {
-    def apply(l : Iterable[_]) : Option[Out]
+    def apply(l: Iterable[_]): Option[Out]
   }
 
   /**
@@ -33,21 +33,22 @@ object traversable {
    * @author Miles Sabin
    */
   object FromTraversable {
-    def apply[Out <: HList](implicit from: FromTraversable[Out]) = from
-
     import syntax.typeable._
 
-    implicit def hnilFromTraversable[T] = new FromTraversable[HNil] {
-      def apply(l : Iterable[_]) =
-        if(l.isEmpty) Some(HNil) else None 
-    }
+    def apply[Out <: HList](implicit from: FromTraversable[Out]): from.type = from
+
+    implicit def hnilFromTraversable[T]: FromTraversable[HNil] =
+      l => if (l.isEmpty) Some(HNil) else None
     
-    implicit def hlistFromTraversable[OutH, OutT <: HList]
-      (implicit flt : FromTraversable[OutT], oc : Typeable[OutH]) = new FromTraversable[OutH :: OutT] {
-        def apply(l : Iterable[_]) : Option[OutH :: OutT] =
-          if(l.isEmpty) None
-          else for(h <- l.head.cast[OutH]; t <- flt(l.tail)) yield h :: t
-    }
+    implicit def hlistFromTraversable[OutH, OutT <: HList](
+      implicit
+      flt: FromTraversable[OutT],
+      oc: Typeable[OutH]
+    ): FromTraversable[OutH :: OutT] = l =>
+      if (l.isEmpty) None else for  {
+        h <- l.head.cast[OutH]
+        t <- flt(l.tail)
+      } yield h :: t
   }
 
   /**
@@ -55,10 +56,7 @@ object traversable {
    * 
    * @author Rob Norris
    */
-  trait ToSizedHList[CC[_], A, N <: Nat] extends Serializable {
-    type Out
-    def apply(cc: CC[A]): Out
-  }
+  trait ToSizedHList[CC[_], A, N <: Nat] extends DepFn1[CC[A]]
 
   /**
    * `ToSizedHList` type class instances.
@@ -66,29 +64,23 @@ object traversable {
    * @author Rob Norris
    */
   object ToSizedHList {
-
-    def apply[CC[_], A, N <: Nat](
-      implicit ev: ToSizedHList[CC, A, N]
-    ): ToSizedHList.Aux[CC, A, N, ev.Out] = 
-      ev
-
     import syntax.sized._
     import ops.nat._
     import ops.sized._
 
-    type Aux[CC[_], A, N <: Nat, Out0] =
-      ToSizedHList[CC, A, N] {
-        type Out = Out0
-      }
+    type Aux[CC[_], A, N <: Nat, Out] = ToSizedHList[CC, A, N] :=> Out
+    def apply[CC[_], A, N <: Nat](implicit ev: ToSizedHList[CC, A, N]): ev.type = ev
 
     implicit def instance[CC[T] <: Iterable[T], A, N <: Nat, O <: HList](
-      implicit gt: IsRegularIterable[CC[A]],
+      implicit
+      gt: IsRegularIterable[CC[A]],
       ac: AdditiveCollection[CC[A]],
       ti: ToInt[N],
-      th: ToHList.Aux[CC[A], N, O]
-    ): Aux[CC, A, N, Option[O]] = new ToSizedHList[CC, A, N] {
-      type Out = Option[O]
-      def apply(as: CC[A]): Out = as.sized[N].map(th.apply)
-    }
+      th: ToHList[CC[A], N] :=> O
+    ): ToSizedHList[CC, A, N] :=> Option[O] =
+      new ToSizedHList[CC, A, N] {
+        type Out = Option[O]
+        def apply(as: CC[A]) = as.sized[N].map(th.apply)
+      }
   }
 }

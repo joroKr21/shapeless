@@ -83,17 +83,17 @@ class ConversionTests {
     val hlab = ab.toProduct
     typed[(A :: HNil) => B](hlab)
 
-    def foo[F, L <: HList, R](f : F, l : L)(implicit fntp: FnToProduct.Aux[F, L => R]) = fntp(f)(l)
+    def foo[F, L <: HList, R](f: F, l: L)(implicit fntp: FnToProduct[F] :=> (L => R)) = fntp(f)(l)
     val s2 = foo(sum, 2 :: 3 :: HNil)
     val ab2 = foo(ab, a :: HNil)
 
     class HListSyntax[A <: HList, F <: AnyRef](a: A) {
-      def applied[U](f: F)(implicit cftp: FnToProduct.Aux[f.type, A => U]): U = cftp(f)(a)
+      def applied[U](f: F)(implicit cftp: FnToProduct[f.type] :=> (A => U)): U = cftp(f)(a)
     }
 
-    implicit def mkSyntax[A <: HList, F <: AnyRef](a: A)
-      (implicit ffp: FnFromProduct.Aux[A => Any, F]): HListSyntax[A, F] =
-      new HListSyntax[A, F](a)
+    implicit def mkSyntax[A <: HList, F <: AnyRef](a: A)(
+      implicit ffp: FnFromProduct[A => Any] :=> F
+    ): HListSyntax[A, F] = new HListSyntax[A, F](a)
 
     val res = (2 :: "a" :: 1.3 :: HNil) applied ((i, s, d) => (s * i, d * i)) // Function argument types inferred
 

@@ -45,18 +45,18 @@ object LinearAlgebraExamples extends App {
       def +(other : Self) : Self = newtype(Tuple1(p._1+other.tupled._1))
     }
     
-    implicit def pointOpsN[N <: Nat, LN <: HList, PN <: Product, ZLN <: HList]
-      (implicit
-        gen : Generic.Aux[PN, LN],
-        zipper : Transposer.Aux[LN :: LN :: HNil, ZLN],
-        mapper : Mapper.Aux[sum.type, ZLN, LN]) : PN => VectorOps[N, PN] =
-          (p : PN) =>
-            new VectorOps[N, PN](p) {
-              def +(other : Self) : Self = {
-                val other0 = newtype.newtypeOps(other)(pointOpsN)
-                newtype(gen.from((gen.to(p) :: gen.to(other0.tupled) :: HNil).transpose.map(sum)))
-              }
-            }
+    implicit def pointOpsN[N <: Nat, LN <: HList, PN <: Product, ZLN <: HList](
+      implicit
+      gen: Generic.Aux[PN, LN],
+      zipper: Transposer[LN :: LN :: HNil] :=> ZLN,
+      mapper: Mapper[sum.type, ZLN] :=> LN
+    ): PN => VectorOps[N, PN] = (p: PN) =>
+      new VectorOps[N, PN](p) {
+        def +(other : Self) : Self = {
+          val other0 = newtype.newtypeOps(other)(pointOpsN)
+          newtype(gen.from((gen.to(p) :: gen.to(other0.tupled) :: HNil).transpose.map(sum)))
+        }
+      }
   }
 
   def Vector(p : Double) = newtype[Tuple1[Double], VectorOps[_1, Tuple1[Double]]](Tuple1(p))

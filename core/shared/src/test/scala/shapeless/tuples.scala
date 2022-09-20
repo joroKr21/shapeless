@@ -1790,11 +1790,12 @@ class TupleTests {
       implicit def default[N <: Nat](implicit toi: ops.nat.ToInt[N]) = at[N](_ => toi())
     }
 
-    def range[R <: HList, OutL <: HList](a: Nat, b: Nat)(implicit
-                                                            range: ops.nat.Range.Aux[a.N, b.N, R],
-                                                            mapper: ops.hlist.Mapper.Aux[toInt.type, R, OutL],
-                                                            tupler: ops.hlist.Tupler[OutL]
-      ): tupler.Out = tupler(mapper(range()))
+    def range[R <: HList, OutL <: HList](a: Nat, b: Nat)(
+      implicit
+      range: ops.nat.Range[a.N, b.N] :=> R,
+      mapper: ops.hlist.Mapper[toInt.type, R] :=> OutL,
+      tupler: ops.hlist.Tupler[OutL]
+    ): tupler.Out = tupler(mapper(range()))
 
     // Note: Slightly different method signature in testGrouper2
 
@@ -1845,11 +1846,12 @@ class TupleTests {
       implicit def default[N <: Nat](implicit toi: ops.nat.ToInt[N]) = at[N](_ => toi())
     }
 
-    def range[R <: HList, T, OutL <: HList](a: Nat, b: Nat)(implicit
-                                                            range: ops.nat.Range.Aux[a.N, b.N, R],
-                                                            mapper: ops.hlist.Mapper.Aux[toInt.type, R, OutL],
-                                                            tupler: ops.hlist.Tupler.Aux[OutL, T]
-      ) = tupler(mapper(range()))
+    def range[R <: HList, T, OutL <: HList](a: Nat, b: Nat)(
+      implicit
+      range: ops.nat.Range[a.N, b.N] :=> R,
+      mapper: ops.hlist.Mapper[toInt.type, R] :=> OutL,
+      tupler: ops.hlist.Tupler[OutL] :=> T
+    ) = tupler(mapper(range()))
 
     // group Unit
     assertEquals( (), ().group (2,1) )

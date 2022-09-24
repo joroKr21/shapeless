@@ -1154,7 +1154,7 @@ object tuple {
     type Aux[T, N <: Nat, Out0] = RotateRight[T, N] { type Out = Out0 }
 
     implicit def tupleRotateRight[T, N <: Nat, L <: HList, L2 <: HList]
-      (implicit gen: Generic.Aux[T, L], rotateRight: hl.RotateRight.Aux[L, N, L2], tp: hl.Tupler[L2])
+      (implicit gen: Generic.Aux[T, L], rotateRight: hl.RotateRight[L, N] :=> L2, tp: hl.Tupler[L2])
         : Aux[T, N, tp.Out] = new RotateRight[T, N] {
           type Out = tp.Out
 

@@ -49,7 +49,6 @@ final class Sized[+Repr, L <: Nat] private (val unsized : Repr) {
 class SizedOps[A0, Repr : AdditiveCollection, L <: Nat](s : Sized[Repr, L], itl: IsRegularIterable[Repr] { type A = A0 }) { outer =>
   import nat._
   import ops.nat._
-  import LT._
   import Sized.wrap
   import ops.sized._
   import ops.hlist.Tupler

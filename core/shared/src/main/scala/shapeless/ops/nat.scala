@@ -22,20 +22,24 @@ import scala.reflect.macros.whitebox
 import scala.language.experimental.macros
 
 object nat {
+  type <[A <: Nat, B <: Nat] = LT[A, B]
+  type >[A <: Nat, B <: Nat] = GT[A, B]
+  type <=[A <: Nat, B <: Nat] = LTEq[A, B]
+  type >=[A <: Nat, B <: Nat] = GTEq[A, B]
 
   /**
    * Type class witnessing that `B` is the predecessor of `A`.
    * 
    * @author Miles Sabin
    */
-  trait Pred[A <: Nat] extends Serializable { type Out <: Nat }
+  trait Pred[A <: Nat] extends DepFn {
+    type Out <: Nat
+  }
 
   object Pred {
-    def apply[A <: Nat](implicit pred: Pred[A]): Aux[A, pred.Out] = pred
-
-    type Aux[A <: Nat, B <: Nat] = Pred[A] { type Out = B }
-
-    implicit def pred[B <: Nat]: Aux[Succ[B], B] = new Pred[Succ[B]] { type Out = B }
+    type Aux[A <: Nat, B <: Nat] = Pred[A] :=> B
+    def apply[A <: Nat](implicit pred: Pred[A]): pred.type = pred
+    implicit def pred[B <: Nat]: Pred[Succ[B]] :=> B = new Pred[Succ[B]] { type Out = B }
   }
 
   /**
@@ -48,13 +52,16 @@ object nat {
   }
 
   object Sum {
-    def apply[A <: Nat, B <: Nat](implicit sum: Sum[A, B]): Aux[A, B, sum.Out] = sum
+    type Aux[A <: Nat, B <: Nat, C <: Nat] = Sum[A, B] :=> C
+    def apply[A <: Nat, B <: Nat](implicit sum: Sum[A, B]): sum.type = sum
 
-    type Aux[A <: Nat, B <: Nat, C <: Nat] = Sum[A, B] { type Out = C }
+    implicit def sum1[B <: Nat]: Sum[_0, B] :=> B =
+      new Sum[_0, B] { type Out = B }
 
-    implicit def sum1[B <: Nat]: Aux[_0, B, B] = new Sum[_0, B] { type Out = B }
-    implicit def sum2[A <: Nat, B <: Nat, C <: Nat]
-      (implicit sum : Sum.Aux[A, Succ[B], C]): Aux[Succ[A], B, C] = new Sum[Succ[A], B] { type Out = C }
+    implicit def sum2[A <: Nat, B <: Nat, C <: Nat](
+      implicit sum: Sum[A, Succ[B]] :=> C
+    ): Sum[Succ[A], B] :=> C =
+      new Sum[Succ[A], B] { type Out = C }
   }
 
   /**
@@ -67,13 +74,16 @@ object nat {
   }
 
   object Diff {
-    def apply[A <: Nat, B <: Nat](implicit diff: Diff[A, B]): Aux[A, B, diff.Out] = diff
+    type Aux[A <: Nat, B <: Nat, C <: Nat] = Diff[A, B] :=> C
+    def apply[A <: Nat, B <: Nat](implicit diff: Diff[A, B]): diff.type = diff
 
-    type Aux[A <: Nat, B <: Nat, C <: Nat] = Diff[A, B] { type Out = C }
+    implicit def diff1[A <: Nat]: Diff[A, _0] :=> A =
+      new Diff[A, _0] { type Out = A }
 
-    implicit def diff1[A <: Nat]: Aux[A, _0, A] = new Diff[A, _0] { type Out = A }
-    implicit def diff2[A <: Nat, B <: Nat, C <: Nat]
-      (implicit diff : Diff.Aux[A, B, C]): Aux[Succ[A], Succ[B], C] = new Diff[Succ[A], Succ[B]] { type Out = C }
+    implicit def diff2[A <: Nat, B <: Nat, C <: Nat](
+      implicit diff: Diff[A, B] :=> C
+    ): Diff[Succ[A], Succ[B]] :=> C =
+      new Diff[Succ[A], Succ[B]] { type Out = C }
   }
 
   /**
@@ -81,16 +91,23 @@ object nat {
    * 
    * @author Miles Sabin
    */
-  trait Prod[A <: Nat, B <: Nat] extends Serializable { type Out <: Nat }
+  trait Prod[A <: Nat, B <: Nat] extends DepFn {
+    type Out <: Nat
+  }
 
   object Prod {
-    def apply[A <: Nat, B <: Nat](implicit prod: Prod[A, B]): Aux[A, B, prod.Out] = prod
+    type Aux[A <: Nat, B <: Nat, C <: Nat] = Prod[A, B] :=> C
+    def apply[A <: Nat, B <: Nat](implicit prod: Prod[A, B]): prod.type = prod
 
-    type Aux[A <: Nat, B <: Nat, C <: Nat] = Prod[A, B] { type Out = C }
+    implicit def prod1[B <: Nat]: Prod[_0, B] :=> _0 =
+      new Prod[_0, B] { type Out = _0 }
 
-    implicit def prod1[B <: Nat]: Aux[_0, B, _0] = new Prod[_0, B] { type Out = _0 }
-    implicit def prod2[A <: Nat, B <: Nat, C <: Nat, D <: Nat]
-      (implicit prod: Prod.Aux[A, B, C], sum: Sum.Aux[B, C, D]): Aux[Succ[A], B, D] = new Prod[Succ[A], B] { type Out = D }
+    implicit def prod2[A <: Nat, B <: Nat, C <: Nat, D <: Nat](
+      implicit
+      prod: Prod[A, B] :=> C,
+      sum: Sum[B, C] :=> D
+    ): Prod[Succ[A], B] :=> D =
+      new Prod[Succ[A], B] { type Out = D }
   }
 
   /**
@@ -98,22 +115,25 @@ object nat {
    *
    * @author Tom Switzer
    */
-  trait Div[A <: Nat, B <: Nat] extends Serializable { type Out <: Nat }
+  trait Div[A <: Nat, B <: Nat] extends DepFn {
+    type Out <: Nat
+  }
 
   object Div {
-    def apply[A <: Nat, B <: Nat](implicit div: Div[A, B]): Aux[A, B, div.Out] = div
+    type Aux[A <: Nat, B <: Nat, C <: Nat] = Div[A, B] :=> C
+    def apply[A <: Nat, B <: Nat](implicit div: Div[A, B]): div.type = div
 
-    import LT._
+    implicit def div1[A <: Nat]: Div[_0, A] :=> _0 =
+      new Div[_0, A] { type Out = _0 }
 
-    type Aux[A <: Nat, B <: Nat, C <: Nat] = Div[A, B] { type Out = C }
-
-    implicit def div1[A <: Nat]: Aux[_0, A, _0] = new Div[_0, A] { type Out = _0 }
-
-    implicit def div2[A <: Nat, B <: Nat](implicit lt: A < B): Aux[A, B, _0] =
+    implicit def div2[A <: Nat, B <: Nat](implicit lt: A < B): Div[A, B] :=> _0 =
       new Div[A, B] { type Out = _0 }
 
-    implicit def div3[A <: Nat, B <: Nat, C <: Nat, D <: Nat]
-      (implicit diff: Diff.Aux[Succ[A], B, C], div: Div.Aux[C, B, D]): Aux[Succ[A], B, Succ[D]] =
+    implicit def div3[A <: Nat, B <: Nat, C <: Nat, D <: Nat](
+      implicit
+      diff: Diff[Succ[A], B] :=> C,
+      div: Div[C, B] :=> D
+    ): Div[Succ[A], B] :=> Succ[D] =
         new Div[Succ[A], B] { type Out = Succ[D] }
   }
 
@@ -127,12 +147,15 @@ object nat {
   }
 
   object Mod {
-    def apply[A <: Nat, B <: Nat](implicit mod: Mod[A, B]): Aux[A, B, mod.Out] = mod
+    type Aux[A <: Nat, B <: Nat, C <: Nat] = Mod[A, B] :=> C
+    def apply[A <: Nat, B <: Nat](implicit mod: Mod[A, B]): mod.type = mod
 
-    type Aux[A <: Nat, B <: Nat, C <: Nat] = Mod[A, B] { type Out = C }
-
-    implicit def modAux[A <: Nat, B <: Nat, C <: Nat, D <: Nat, E <: Nat]
-      (implicit div: Div.Aux[A, B, C], prod: Prod.Aux[C, B, D], diff: Diff.Aux[A, D, E]): Aux[A, B, E] =
+    implicit def modAux[A <: Nat, B <: Nat, C <: Nat, D <: Nat, E <: Nat](
+      implicit
+      div: Div[A, B] :=> C,
+      prod: Prod[C, B] :=> D,
+      diff: Diff[A, D] :=> E
+    ): Mod[A, B] :=> E =
         new Mod[A, B] { type Out = E }
   }
 
@@ -142,18 +165,16 @@ object nat {
    * @author Miles Sabin
    */
   trait LT[A <: Nat, B <: Nat] extends Serializable
-
   object LT extends LT0 {
-    def apply[A <: Nat, B <: Nat](implicit lt: A < B): LT[A, B] = lt
-
-    implicit def lt1[B <: Nat] = new <[_0, Succ[B]] {}
-    implicit def lt2[A <: Nat, B <: Nat](implicit lt : A < B) = new <[Succ[A], Succ[B]] {}
+    def apply[A <: Nat, B <: Nat](implicit lt: A < B): lt.type = lt
+    implicit def lt1[B <: Nat]: _0 < Succ[B] = new LT[_0, Succ[B]] {}
+    implicit def lt2[A <: Nat, B <: Nat](implicit lt: A < B): Succ[A] < Succ[B] =
+      new LT[Succ[A], Succ[B]] {}
   }
 
   trait LT0 {
     type <[A <: Nat, B <: Nat] = LT[A, B]
-
-    implicit def lt3[A <: Nat] = new <[A, Succ[A]] {}
+    implicit def lt3[A <: Nat]: A < Succ[A] = new LT[A, Succ[A]] {}
   }
 
   /**
@@ -162,19 +183,17 @@ object nat {
    * @author Miles Sabin
    */
   trait LTEq[A <: Nat, B <: Nat] extends Serializable
-
   object LTEq extends LTEq0 {
-    def apply[A <: Nat, B <: Nat](implicit lteq: A <= B): LTEq[A, B] = lteq
-
-    implicit def ltEq1[A <: Nat] = new <=[A, A] {}
-    implicit def ltEq2[A <: Nat] = new <=[A, Succ[A]] {}
+    def apply[A <: Nat, B <: Nat](implicit lteq: A <= B): lteq.type = lteq
+    implicit def ltEq1[A <: Nat]: A <= A = new LTEq[A, A] {}
+    implicit def ltEq2[A <: Nat]: A <= Succ[A] = new LTEq[A, Succ[A]] {}
   }
 
   trait LTEq0 {
     type <=[A <: Nat, B <: Nat] = LTEq[A, B]
-
-    implicit def ltEq3[B <: Nat] = new <=[_0, B] {}
-    implicit def ltEq4[A <: Nat, B <: Nat](implicit lteq : A <= B) = new <=[Succ[A], Succ[B]] {}
+    implicit def ltEq3[B <: Nat]: _0 <= B = new LTEq[_0, B] {}
+    implicit def ltEq4[A <: Nat, B <: Nat](implicit lteq: A <= B): Succ[A] <= Succ[B] =
+      new LTEq[Succ[A], Succ[B]] {}
   }
 
   /**
@@ -184,7 +203,7 @@ object nat {
    */
   type GT[A <: Nat, B <: Nat] = LT[B, A]
   object GT {
-    def apply[A <: Nat, B <: Nat](implicit gt: GT[A, B]): GT[A, B] = gt
+    def apply[A <: Nat, B <: Nat](implicit gt: GT[A, B]): gt.type = gt
     type >[A <: Nat, B <: Nat] = GT[A, B]
   }
 
@@ -195,7 +214,7 @@ object nat {
    */
   type GTEq[A <: Nat, B <: Nat] = LTEq[B, A]
   object GTEq {
-    def apply[A <: Nat, B <: Nat](implicit gteq: GTEq[A, B]): GTEq[A, B] = gteq
+    def apply[A <: Nat, B <: Nat](implicit gteq: GTEq[A, B]): gteq.type = gteq
     type >=[A <: Nat, B <: Nat] = GTEq[A, B]
   }
 
@@ -209,14 +228,13 @@ object nat {
   }
 
   object Min {
-    def apply[A <: Nat, B <: Nat](implicit min: Min[A, B]): Aux[A, B, min.Out] = min
+    type Aux[A <: Nat, B <: Nat, C <: Nat] = Min[A, B] :=> C
+    def apply[A <: Nat, B <: Nat](implicit min: Min[A, B]): min.type = min
 
-    type Aux[A <: Nat, B <: Nat, C <: Nat] = Min[A, B] { type Out = C }
-
-    implicit def minAux0[A <: Nat, B <: Nat, C <: Nat]
-      (implicit lteq: LTEq[A, B]): Aux[A, B, A] = new Min[A, B] { type Out = A }
-    implicit def minAux1[A <: Nat, B <: Nat, C <: Nat]
-      (implicit lteq: LT[B, A]): Aux[A, B, B] = new Min[A, B] { type Out = B }
+    implicit def minAux0[A <: Nat, B <: Nat, C <: Nat](implicit lteq: A <= B): Min[A, B] :=> A =
+      new Min[A, B] { type Out = A }
+    implicit def minAux1[A <: Nat, B <: Nat, C <: Nat](implicit lt: B < A): Min[A, B] :=> B =
+      new Min[A, B] { type Out = B }
   }
 
   /**
@@ -224,17 +242,18 @@ object nat {
    *
    * @author Alexander Konovalov
    */
-  trait Max[A <: Nat, B <: Nat] extends Serializable { type Out <: Nat }
+  trait Max[A <: Nat, B <: Nat] extends DepFn {
+    type Out <: Nat
+  }
 
   object Max {
-    def apply[A <: Nat, B <: Nat](implicit max: Max[A, B]): Aux[A, B, max.Out] = max
+    type Aux[A <: Nat, B <: Nat, C <: Nat] = Max[A, B] :=> C
+    def apply[A <: Nat, B <: Nat](implicit max: Max[A, B]): max.type = max
 
-    type Aux[A <: Nat, B <: Nat, C <: Nat] = Max[A, B] { type Out = C }
-
-    implicit def maxAux0[A <: Nat, B <: Nat, C <: Nat]
-      (implicit lteq: LTEq[A, B]): Aux[A, B, B] = new Max[A, B] { type Out = B }
-    implicit def maxAux1[A <: Nat, B <: Nat, C <: Nat]
-      (implicit lteq: LT[B, A]): Aux[A, B, A] = new Max[A, B] { type Out = A }
+    implicit def maxAux0[A <: Nat, B <: Nat, C <: Nat](implicit lteq: A <= B): Max[A, B] :=> B =
+      new Max[A, B] { type Out = B }
+    implicit def maxAux1[A <: Nat, B <: Nat, C <: Nat](implicit lt: B < A): Max[A, B] :=> A =
+      new Max[A, B] { type Out = A }
   }
 
   /**
@@ -242,19 +261,28 @@ object nat {
    *
    * @author George Leontiev
    */
-  trait Pow[N <: Nat, X <: Nat] extends Serializable { type Out <: Nat }
+  trait Pow[N <: Nat, X <: Nat] extends DepFn {
+    type Out <: Nat
+  }
 
   object Pow {
-    def apply[A <: Nat, B <: Nat](implicit pow: Pow[A, B]): Aux[A, B, pow.Out] = pow
-
     import shapeless.nat._1
 
-    type Aux[N <: Nat, X <: Nat, Z <: Nat] = Pow[N, X] { type Out = Z }
+    type Aux[N <: Nat, X <: Nat, Z <: Nat] = Pow[N, X] :=> Z
+    def apply[A <: Nat, B <: Nat](implicit pow: Pow[A, B]): pow.type = pow
 
-    implicit def pow1[A <: Nat]: Aux[Succ[A], _0, _0] = new Pow[Succ[A], _0] { type Out = _0 }
-    implicit def pow2[A <: Nat]: Aux[_0, Succ[A], _1] = new Pow[_0, Succ[A]] { type Out = _1 }
-    implicit def pow3[N <: Nat, X <: Nat, Z <: Nat, Y <: Nat]
-      (implicit ev : Pow.Aux[N, X, Z], ev2 : Prod.Aux[Z, X, Y]): Aux[Succ[N], X, Y] = new Pow[Succ[N], X] { type Out = Y }
+    implicit def pow1[A <: Nat]: Pow[Succ[A], _0] :=> _0 =
+      new Pow[Succ[A], _0] { type Out = _0 }
+
+    implicit def pow2[A <: Nat]: Pow[_0, Succ[A]] :=> _1 =
+      new Pow[_0, Succ[A]] { type Out = _1 }
+
+    implicit def pow3[N <: Nat, X <: Nat, Z <: Nat, Y <: Nat](
+      implicit
+      ev: Pow[N, X] :=> Z,
+      ev2: Prod[Z, X] :=> Y
+    ): Pow[Succ[N], X] :=> Y =
+      new Pow[Succ[N], X] { type Out = Y }
   }
 
   /**
@@ -296,24 +324,28 @@ object nat {
    * @author Andreas Koestler
    */
   trait LowPriorityGCD {
-    implicit def defaultCase[A <: Nat, B <: Nat, T <: Nat](implicit
-                                                           mod: Mod.Aux[A, B, T],
-                                                           gcd: GCD[B, T]): GCD.Aux[A, B, gcd.Out] = new GCD[A, B] {
-      type Out = gcd.Out
-    }
+    implicit def defaultCase[A <: Nat, B <: Nat, T <: Nat](
+      implicit
+      mod: Mod[A, B] :=> T,
+      gcd: GCD[B, T]
+    ): GCD[A, B] :=> gcd.Out =
+      new GCD[A, B] {
+        type Out = gcd.Out
+      }
   }
-  trait GCD[A <: Nat, B <: Nat] extends Serializable {
+
+  trait GCD[A <: Nat, B <: Nat] extends DepFn {
     type Out <: Nat
   }
 
   object GCD extends LowPriorityGCD {
-    def apply[A <: Nat, B <: Nat](implicit gcd: GCD[A, B]): Aux[A, B, gcd.Out] = gcd
+    type Aux[A <: Nat, B <: Nat, Out <: Nat] = GCD[A, B] :=> Out
+    def apply[A <: Nat, B <: Nat](implicit gcd: GCD[A, B]): gcd.type = gcd
 
-    type Aux[A <: Nat, B <: Nat, Out0 <: Nat] = GCD[A, B] {type Out = Out0}
-
-    implicit def terminationCase[A <: Nat]: Aux[A, _0, A] = new GCD[A, _0] {
-      type Out = A
-    }
+    implicit def terminationCase[A <: Nat]: GCD[A, _0] :=> A =
+      new GCD[A, _0] {
+        type Out = A
+      }
   }
 
   /**
@@ -321,21 +353,20 @@ object nat {
    *
    * @author Andreas Koestler
    */
-  trait LCM[A <: Nat, B <: Nat] extends Serializable {
+  trait LCM[A <: Nat, B <: Nat] extends DepFn {
     type Out <: Nat
   }
 
   object LCM {
-    def apply[A <: Nat, B <: Nat](implicit lcm: LCM[A, B]): Aux[A, B, lcm.Out] = lcm
+    type Aux[A <: Nat, B <: Nat, Out <: Nat] = LCM[A, B] :=> Out
+    def apply[A <: Nat, B <: Nat](implicit lcm: LCM[A, B]): lcm.type = lcm
 
-    type Aux[A <: Nat, B <: Nat, Out0 <: Nat] = LCM[A, B] {type Out = Out0}
-
-    implicit def lcm[A <: Nat, B <: Nat, M <: Nat, N <: Nat, Res <: Nat]
-    (implicit
-     prod: Prod.Aux[A, B, M],
-     gcd: GCD.Aux[A, B, N],
-     div: Div[M, N]
-      ): Aux[A, B, div.Out] = new LCM[A, B] {
+    implicit def lcm[A <: Nat, B <: Nat, M <: Nat, N <: Nat, Res <: Nat](
+      implicit
+      prod: Prod[A, B] :=> M,
+      gcd: GCD[A, B] :=> N,
+      div: Div[M, N]
+    ): LCM[A, B] :=> div.Out = new LCM[A, B] {
       type Out = div.Out
     }
   }
@@ -355,16 +386,14 @@ object nat {
     *
     * @author Jeff Wilde
     */
-  trait BoundedRange[A <: BoundedRange.Bound, B <: BoundedRange.Bound] extends DepFn0 with Serializable {
+  trait BoundedRange[A <: BoundedRange.Bound, B <: BoundedRange.Bound] extends DepFn0 {
     type Out <: HList
   }
 
   object BoundedRange {
+    def apply[A <: BoundedRange.Bound, B <: BoundedRange.Bound](implicit range: BoundedRange[A,B]): range.type  = range
 
-    def apply[A <: BoundedRange.Bound, B <: BoundedRange.Bound](implicit range: BoundedRange[A,B])
-    : AuxF[A, B, range.Out]  = range
-
-    trait Bound extends DepFn0 with Serializable {
+    trait Bound extends DepFn0 {
       type Out <: Nat
     }
 
@@ -389,91 +418,82 @@ object nat {
 
     import shapeless.ops.hlist._
 
-    type AuxF[A <: BoundedRange.Bound, B <: BoundedRange.Bound, Out0 <: HList] =
-      BoundedRange[A, B] {type Out = Out0}
+    type AuxF[A <: BoundedRange.Bound, B <: BoundedRange.Bound, Out <: HList] =
+      BoundedRange[A, B] :=> Out
 
     //
     // nil ranges (both nil starting and recursive terminators)
 
-    implicit def nilClosed[A <: Nat]
-    (implicit w: Witness.Aux[A])
-    : AuxF[Inclusive[A], Inclusive[A], A :: HNil] =
+    implicit def nilClosed[A <: Nat](
+      implicit w: Witness.Aux[A]
+    ): BoundedRange[Inclusive[A], Inclusive[A]] :=> (A :: HNil) =
       new BoundedRange[Inclusive[A], Inclusive[A]] {
         type Out = A :: HNil
-
-        def apply(): Out = w.value :: HNil
+        def apply() = w.value :: HNil
       }
 
-    implicit def nilOpen[A <: Nat]
-    (implicit w: Witness.Aux[A])
-    : AuxF[Exclusive[A], Exclusive[A], HNil] =
+    implicit def nilOpen[A <: Nat](
+      implicit w: Witness.Aux[A]
+    ): BoundedRange[Exclusive[A], Exclusive[A]] :=> HNil =
       new BoundedRange[Exclusive[A], Exclusive[A]] {
         type Out = HNil
-
-        def apply(): Out = HNil
+        def apply() = HNil
       }
 
-    implicit def nilLeftOpenRightClosed[A <: Nat]
-    (implicit w: Witness.Aux[A])
-    : AuxF[Exclusive[A], Inclusive[A], A :: HNil] =
+    implicit def nilLeftOpenRightClosed[A <: Nat](
+      implicit w: Witness.Aux[A]
+    ): BoundedRange[Exclusive[A], Inclusive[A]] :=> (A :: HNil) =
       new BoundedRange[Exclusive[A], Inclusive[A]] {
         type Out = A :: HNil
-
-        def apply(): Out = w.value :: HNil
+        def apply() = w.value :: HNil
       }
 
-    implicit def nilLeftClosedRightOpen[A <: Nat]
-    (implicit w: Witness.Aux[A])
-    : AuxF[Inclusive[A], Exclusive[A], A :: HNil] =
+    implicit def nilLeftClosedRightOpen[A <: Nat](
+      implicit w: Witness.Aux[A]
+    ): BoundedRange[Inclusive[A], Exclusive[A]] :=> (A :: HNil) =
       new BoundedRange[Inclusive[A], Exclusive[A]] {
         type Out = A :: HNil
-
-        def apply(): Out = w.value :: HNil
+        def apply() = w.value :: HNil
       }
 
     //
     // nil ranges (recursive terminators only)
 
-    implicit def nilLeftOpenRightSoft[A <: Nat]
-    : AuxF[Exclusive[A], SoftInclusive[A], HNil] =
+    implicit def nilLeftOpenRightSoft[A <: Nat]: BoundedRange[Exclusive[A], SoftInclusive[A]] :=> HNil =
       new BoundedRange[Exclusive[A], SoftInclusive[A]] {
         type Out = HNil
-
-        def apply(): Out = HNil
+        def apply() = HNil
       }
 
-    implicit def nilLeftClosedRightSoft[A <: Nat]
-    (implicit w: Witness.Aux[A])
-    : AuxF[Inclusive[A], SoftInclusive[A], A :: HNil] =
+    implicit def nilLeftClosedRightSoft[A <: Nat](
+      implicit w: Witness.Aux[A]
+    ): BoundedRange[Inclusive[A], SoftInclusive[A]] :=> (A :: HNil) =
       new BoundedRange[Inclusive[A], SoftInclusive[A]] {
         type Out = A :: HNil
-
-        def apply(): Out = w.value :: HNil
+        def apply() = w.value :: HNil
       }
 
     //
     // intermediate recursive ranges
 
-    implicit def leftOpenRightSoft[A <: Nat, B <: Nat, Sub <: HList]
-    (implicit
+    implicit def leftOpenRightSoft[A <: Nat, B <: Nat, Sub <: HList](
+      implicit
       w: Witness.Aux[Succ[B]],
-      subRange: AuxF[Exclusive[A], SoftInclusive[B], Sub])
-    : AuxF[Exclusive[A], SoftInclusive[Succ[B]], Succ[B] :: Sub] =
+      subRange: BoundedRange[Exclusive[A], SoftInclusive[B]] :=> Sub
+    ): BoundedRange[Exclusive[A], SoftInclusive[Succ[B]]] :=> (Succ[B] :: Sub) =
       new BoundedRange[Exclusive[A], SoftInclusive[Succ[B]]] {
         type Out = Succ[B] :: Sub
-
-        def apply(): Out = w.value :: subRange()
+        def apply() = w.value :: subRange()
       }
 
-    implicit def leftClosedRightSoft[A <: Nat, B <: Nat, Sub <: HList]
-    (implicit
+    implicit def leftClosedRightSoft[A <: Nat, B <: Nat, Sub <: HList](
+      implicit
       w: Witness.Aux[Succ[B]],
-      subRange: AuxF[Inclusive[A], SoftInclusive[B], Sub])
-    : AuxF[Inclusive[A], SoftInclusive[Succ[B]], Succ[B] :: Sub] =
+      subRange: BoundedRange[Inclusive[A], SoftInclusive[B]] :=> Sub
+    ): BoundedRange[Inclusive[A], SoftInclusive[Succ[B]]] :=> (Succ[B] :: Sub) =
       new BoundedRange[Inclusive[A], SoftInclusive[Succ[B]]] {
         type Out =  Succ[B] :: Sub
-
-        def apply(): Out = w.value :: subRange()
+        def apply() = w.value :: subRange()
       }
 
     //
@@ -482,9 +502,9 @@ object nat {
     implicit def closed[A <: Nat, B <: Nat, Sub <: HList, Rev <: HList](
       implicit
       w: Witness.Aux[Succ[B]],
-      subRange: AuxF[Inclusive[A], SoftInclusive[B], Sub],
+      subRange: BoundedRange[Inclusive[A], SoftInclusive[B]] :=> Sub,
       reverse: ReversePrepend[Sub, Succ[B] :: HNil] :=> Rev
-    ): AuxF[Inclusive[A], Inclusive[Succ[B]], Rev] =
+    ): BoundedRange[Inclusive[A], Inclusive[Succ[B]]] :=> Rev =
       new BoundedRange[Inclusive[A], Inclusive[Succ[B]]] {
         type Out = Rev
         def apply() = reverse(subRange(), w.value :: HNil)
@@ -492,9 +512,9 @@ object nat {
 
     implicit def open[A <: Nat, B <: Nat, Sub <: HList, Rev <: HList](
       implicit
-      subRange: AuxF[Exclusive[A], SoftInclusive[B], Sub],
+      subRange: BoundedRange[Exclusive[A], SoftInclusive[B]] :=> Sub,
       reverse: Reverse[Sub] :=> Rev
-    ): AuxF[Exclusive[A], Exclusive[Succ[B]], Rev] =
+    ): BoundedRange[Exclusive[A], Exclusive[Succ[B]]] :=> Rev =
       new BoundedRange[Exclusive[A], Exclusive[Succ[B]]] {
         type Out = Rev
         def apply() = reverse(subRange())
@@ -503,9 +523,9 @@ object nat {
     implicit def leftOpenRightClosed[A <: Nat, B <: Nat, Sub <: HList, Rev <: HList](
       implicit
       w: Witness.Aux[Succ[B]],
-      subRange: AuxF[Exclusive[A], SoftInclusive[B], Sub],
+      subRange: BoundedRange[Exclusive[A], SoftInclusive[B]] :=> Sub,
       reverse: ReversePrepend[Sub, Succ[B] :: HNil] :=> Rev
-    ): AuxF[Exclusive[A], Inclusive[Succ[B]], Rev] =
+    ): BoundedRange[Exclusive[A], Inclusive[Succ[B]]] :=> Rev =
       new BoundedRange[Exclusive[A], Inclusive[Succ[B]]] {
         type Out = Rev
         def apply() = reverse(subRange(), w.value :: HNil)
@@ -513,9 +533,9 @@ object nat {
 
     implicit def leftClosedRightOpen[A <: Nat, B <: Nat, Sub <: HList, Rev <: HList](
       implicit
-      subRange: AuxF[Inclusive[A], SoftInclusive[B], Sub],
+      subRange: BoundedRange[Inclusive[A], SoftInclusive[B]] :=> Sub,
       reverse: Reverse[Sub] :=> Rev
-    ): AuxF[Inclusive[A], Exclusive[Succ[B]], Rev] =
+    ): BoundedRange[Inclusive[A], Exclusive[Succ[B]]] :=> Rev =
       new BoundedRange[Inclusive[A], Exclusive[Succ[B]]] {
         type Out =  Rev
         def apply() = reverse(subRange())
@@ -524,68 +544,56 @@ object nat {
     //
     // reversed starting ranges
 
-    implicit def openReverse[A <: Nat, B <: Nat, Sub <: HList]
-    (implicit subRange: AuxF[Exclusive[B], SoftInclusive[A], Sub])
-    : AuxF[Exclusive[Succ[A]], Exclusive[B], Sub] =
+    implicit def openReverse[A <: Nat, B <: Nat, Sub <: HList](
+      implicit subRange: BoundedRange[Exclusive[B], SoftInclusive[A]] :=> Sub
+    ): BoundedRange[Exclusive[Succ[A]], Exclusive[B]] :=> Sub =
       new BoundedRange[Exclusive[Succ[A]], Exclusive[B]] {
         type Out = Sub
-
-        def apply(): Out = subRange()
+        def apply() = subRange()
       }
 
-    implicit def leftClosedRightOpenReverse[A <: Nat, B <: Nat, Sub <: HList]
-    (implicit
+    implicit def leftClosedRightOpenReverse[A <: Nat, B <: Nat, Sub <: HList](
+      implicit
       wA: Witness.Aux[Succ[A]],
-      subRange: AuxF[Exclusive[B], SoftInclusive[A], Sub])
-    : AuxF[Inclusive[Succ[A]], Exclusive[B], Succ[A] :: Sub] =
+      subRange: BoundedRange[Exclusive[B], SoftInclusive[A]] :=> Sub
+    ): BoundedRange[Inclusive[Succ[A]], Exclusive[B]] :=> (Succ[A] :: Sub) =
       new BoundedRange[Inclusive[Succ[A]], Exclusive[B]] {
         type Out =  Succ[A] :: Sub
-
-        def apply(): Out = wA.value :: subRange()
+        def apply() = wA.value :: subRange()
       }
 
-    implicit def leftOpenRightClosedReverse[A <: Nat, B <: Nat, Sub <: HList]
-    (implicit subRange: AuxF[Inclusive[B], SoftInclusive[A], Sub])
-    : AuxF[Exclusive[Succ[A]], Inclusive[B], Sub] =
+    implicit def leftOpenRightClosedReverse[A <: Nat, B <: Nat, Sub <: HList](
+      implicit subRange: BoundedRange[Inclusive[B], SoftInclusive[A]] :=> Sub
+    ): BoundedRange[Exclusive[Succ[A]], Inclusive[B]] :=> Sub =
       new BoundedRange[Exclusive[Succ[A]], Inclusive[B]] {
         type Out =  Sub
-
-        def apply(): Out = subRange()
+        def apply() = subRange()
       }
 
-    implicit def closedReverse[A <: Nat, B <: Nat, Sub <: HList]
-    (implicit
+    implicit def closedReverse[A <: Nat, B <: Nat, Sub <: HList](
+      implicit
       wA: Witness.Aux[Succ[A]],
-      subRange: AuxF[Inclusive[B], SoftInclusive[A], Sub])
-    : AuxF[Inclusive[Succ[A]], Inclusive[B], Succ[A] :: Sub] =
+      subRange: BoundedRange[Inclusive[B], SoftInclusive[A]] :=> Sub
+    ): BoundedRange[Inclusive[Succ[A]], Inclusive[B]] :=> (Succ[A] :: Sub) =
       new BoundedRange[Inclusive[Succ[A]], Inclusive[B]] {
         type Out =  Succ[A] :: Sub
-
-        def apply(): Out = wA.value :: subRange()
+        def apply() = wA.value :: subRange()
       }
 
     object Bound {
 
-      implicit def inclusive[A <: Nat]
-      (implicit w: Witness.Aux[A])
-      : Inclusive[A] =
+      implicit def inclusive[A <: Nat](implicit w: Witness.Aux[A]): Inclusive[A] =
         new Inclusive[A] {
           type Out = A
-
-          def apply(): Out = w.value
+          def apply() = w.value
         }
 
-      implicit def exclusive[A <: Nat]
-      (implicit w: Witness.Aux[A])
-      : Exclusive[A] =
+      implicit def exclusive[A <: Nat](implicit w: Witness.Aux[A]): Exclusive[A] =
         new Exclusive[A] {
           type Out = A
-
-          def apply(): Out = w.value
+          def apply() = w.value
         }
-
     }
-
   }
 
   /**
@@ -611,29 +619,23 @@ object nat {
   class ToIntMacros(val c: whitebox.Context) extends CaseClassMacros {
     import c.universe._
 
-    val _0Tpe = typeOf[_0]
-    val succTpe = typeOf[Succ[_]].typeConstructor
-    val succSym = succTpe.typeSymbol
-    val succPre = prefix(succTpe)
-
+    val _0Tpe: Type = typeOf[_0]
+    val succTpe: Type = typeOf[Succ[_]].typeConstructor
+    val succSym: Symbol = succTpe.typeSymbol
+    val succPre: Type = prefix(succTpe)
 
     def applyImpl[N <: Nat](implicit nTag: WeakTypeTag[N]): Tree = {
       val tpe = nTag.tpe.dealias
 
       @tailrec
-      def count(u: Type, acc: Int): Int = {
-        if(u <:< _0Tpe) acc
-        else (u baseType succSym) match {
+      def count(u: Type, acc: Int): Int =
+        if (u <:< _0Tpe) acc
+        else u.baseType(succSym) match {
           case TypeRef(pre, _, List(n)) if pre =:= succPre => count(n, acc + 1)
           case _ => abort(s"$tpe is not a Nat type")
         }
-      }
 
-      q"""
-            new _root_.shapeless.ops.nat.ToInt.Inst(${count(tpe, 0)}).
-              asInstanceOf[ _root_.shapeless.ops.nat.ToInt[$tpe]]
-          """
+      q"new ${weakTypeOf[ToInt.Inst[N]]}(${count(tpe, 0)})"
     }
   }
-
 }

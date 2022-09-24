@@ -26,9 +26,7 @@ object Sorting {
   import nat._
   import ops.nat._
   import test._
-  import LT._
-  import LTEq._
-  
+
   /**
    * Witness that an HList of Nats is in non-decreasing order at both type and value level.
    */

@@ -795,21 +795,22 @@ object coproduct {
 
   trait LowPriorityRotateLeft {
     implicit def coproductRotateLeft[
-     C <: Coproduct, N <: Nat, Size <: Nat, NModSize <: Nat, Before <: Coproduct, After <: Coproduct
+      C <: Coproduct,
+      N <: Nat,
+      Size <: Nat,
+      NModSize <: Nat,
+      Before <: Coproduct,
+      After <: Coproduct
     ](implicit
-      length: Length.Aux[C, Size],
-      mod: nat.Mod.Aux[N, Size, NModSize],
+      length: Length[C] :=> Size,
+      mod: nat.Mod[N, Size] :=> NModSize,
       split: Split.Aux[C, NModSize, Before, After],
       prepend: Prepend[After, Before]
-    ): RotateLeft.Aux[C, N, prepend.Out] = new RotateLeft[C, N] {
-      type Out = prepend.Out
-
-      def apply(c: C): Out = {
-        val e = split(c)
-
-        prepend(e.swap)
+    ): RotateLeft[C, N] :=> prepend.Out =
+      new RotateLeft[C, N] {
+        type Out = prepend.Out
+        def apply(c: C) = prepend(split(c).swap)
       }
-    }
   }
 
   /**
@@ -834,17 +835,21 @@ object coproduct {
     type Aux[C <: Coproduct, N <: Nat, Out0 <: Coproduct] = RotateRight[C, N] { type Out = Out0 }
 
     implicit def coproductRotateRight[
-     C <: Coproduct, N <: Nat, Size <: Nat, NModSize <: Nat, Size_Diff_NModSize <: Nat
+      C <: Coproduct,
+      N <: Nat,
+      Size <: Nat,
+      NModSize <: Nat,
+      Size_Diff_NModSize <: Nat
     ](implicit
-      length: Length.Aux[C, Size],
-      mod: nat.Mod.Aux[N, Size, NModSize],
-      diff: nat.Diff.Aux[Size, NModSize, Size_Diff_NModSize],
+      length: Length[C] :=> Size,
+      mod: nat.Mod[N, Size] :=> NModSize,
+      diff: nat.Diff[Size, NModSize] :=> Size_Diff_NModSize,
       rotateLeft: RotateLeft[C, Size_Diff_NModSize]
-    ): RotateRight.Aux[C, N, rotateLeft.Out] = new RotateRight[C, N] {
-      type Out = rotateLeft.Out
-
-      def apply(c: C): Out = rotateLeft(c)
-    }
+    ): RotateRight[C, N] :=> rotateLeft.Out =
+      new RotateRight[C, N] {
+        type Out = rotateLeft.Out
+        def apply(c: C) = rotateLeft(c)
+      }
   }
 
   /**

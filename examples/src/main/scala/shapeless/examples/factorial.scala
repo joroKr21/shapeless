@@ -36,7 +36,7 @@ object FactorialExamples {
 
     implicit def fact0: Aux[_0, _1] = new Factorial[_0] { type Out = _1 }
     implicit def factN[N <: Nat, F <: Nat, F1 <: Nat]
-      (implicit f : Factorial.Aux[N, F1], t : Prod.Aux[Succ[N], F1, F]): Aux[Succ[N], F] =
+      (implicit f : Factorial.Aux[N, F1], t : Prod[Succ[N], F1] :=> F): Aux[Succ[N], F] =
         new Factorial[Succ[N]] { type Out = F }
   }
 

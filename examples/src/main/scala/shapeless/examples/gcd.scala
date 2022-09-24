@@ -27,19 +27,30 @@ object GCDExamples {
   import ops.nat._
   import test._
 
-  trait GCD[X <: Nat, Y <: Nat] { type Out <: Nat }
+  trait GCD[X <: Nat, Y <: Nat] extends DepFn {
+    type Out <: Nat
+  }
 
   object GCD {
-    def gcd[N <: Nat](x : Nat, y : Nat)(implicit gcd : Aux[x.N, y.N, N], wn : Witness.Aux[N]): N = wn.value
+    def gcd[N <: Nat](x: Nat, y: Nat)(implicit gcd: GCD[x.N, y.N] :=> N, wn: Witness.Aux[N]): N = wn.value
 
-    type Aux[X <: Nat, Y <: Nat, Z <: Nat] = GCD[X, Y] { type Out = Z }
+    implicit def gcd0[X <: Nat]: GCD[X, X] :=> X =
+      new GCD[X, X] { type Out = X }
 
-    implicit def gcd0[X <: Nat]: Aux[X, X, X] = new GCD[X, X] { type Out = X }
-    implicit def gcd1[X <: Nat, Y <: Nat, Z <: Nat, Out0 <: Nat]
-      (implicit ev0 : LT[X, Y], ev1 : Diff[Y, X] :=> Z, ev2 : Aux[X, Z, Out0]): Aux[X, Y, Out0] =
-        new GCD[X, Y] { type Out = Out0 }
-    implicit def gcd2[X <: Nat, Y <: Nat, Out0 <: Nat]
-      (implicit ev0 : LT[Y, X], ev1 : Aux[Y, X, Out0]): Aux[X, Y, Out0] = new GCD[X, Y] { type Out = Out0}
+    implicit def gcd1[X <: Nat, Y <: Nat, Z <: Nat, O <: Nat](
+      implicit
+      lt: X < Y,
+      diff: Diff[Y, X] :=> Z,
+      gcd: GCD[X, Z] :=> O
+    ): GCD[X, Y] :=> O =
+      new GCD[X, Y] { type Out = O }
+
+    implicit def gcd2[X <: Nat, Y <: Nat, O <: Nat](
+      implicit
+      lt: Y < X,
+      gcd: GCD[Y, X] :=> O
+    ): GCD[X, Y] :=> O =
+      new GCD[X, Y] { type Out = O}
   }
 
   import GCD._

@@ -167,11 +167,10 @@ final class TupleOps[T](t: T) extends Serializable {
    * The `Elem` suffix is here for consistency with the corresponding method name for `HList` and should be
    * removed when the latter is removed.
    */
-  def updatedElem[U, R](u: U)
-    (implicit replacer: Replacer.Aux[T, U, U, (U, R)]): R = replacer(t, u)._2
+  def updatedElem[U, R](u: U)(implicit replacer: Replacer[T, U, U] :=> (U, R)): R = replacer(t, u)._2
   
   class UpdatedTypeAux[U] {
-    def apply[V, R](v: V)(implicit replacer: Replacer.Aux[T, U, V, (U, R)]): R = replacer(t, v)._2
+    def apply[V, R](v: V)(implicit replacer: Replacer[T, U, V] :=> (U, R)): R = replacer(t, v)._2
   }
 
   /**
@@ -182,7 +181,7 @@ final class TupleOps[T](t: T) extends Serializable {
   def updatedType[U] = new UpdatedTypeAux[U]
 
   class UpdateWithAux[U] {
-    def apply[V, R](f: U => V)(implicit modifier: Modifier.Aux[T, U, V, (U, R)]): R = modifier(t, f)._2
+    def apply[V, R](f: U => V)(implicit modifier: Modifier[T, U, V] :=> (U, R)): R = modifier(t, f)._2
   }
 
   /**
@@ -201,7 +200,7 @@ final class TupleOps[T](t: T) extends Serializable {
     (implicit upd: ModifierAt[T, n.N, n.instance.Out, U]): upd.Out = upd(t, f)
 
   class UpdatedAtAux[N <: Nat] {
-    def apply[U, V, R](u: U)(implicit replacer: ReplaceAt.Aux[T, N, U, (V, R)]): R = replacer(t, u)._2
+    def apply[U, V, R](u: U)(implicit replacer: ReplaceAt[T, N, U] :=> (V, R)): R = replacer(t, u)._2
   }
 
 
@@ -215,7 +214,7 @@ final class TupleOps[T](t: T) extends Serializable {
    * Replaces the ''nth' element of this tuple with the supplied value of type `U`. Available only if there is
    * evidence that this tuple has at least ''n'' elements.
    */
-  def updatedAt[U, V, R](n: Nat, u: U)(implicit replacer: ReplaceAt.Aux[T, n.N, U, (V, R)]): R = replacer(t, u)._2
+  def updatedAt[U, V, R](n: Nat, u: U)(implicit replacer: ReplaceAt[T, n.N, U] :=> (V, R)): R = replacer(t, u)._2
 
   /**
    * Returns the first ''n'' elements of this tuple. An explicit type argument must be provided. Available only if

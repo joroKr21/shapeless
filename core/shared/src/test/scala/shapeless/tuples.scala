@@ -390,11 +390,10 @@ class TupleTests {
   def testUnifier: Unit = {
     import ops.tuple._
 
-    implicitly[Unifier.Aux[Tuple1[Apple], Tuple1[Apple]]]
-    implicitly[Unifier.Aux[(Fruit, Pear), (Fruit, Fruit)]]
-    //implicitly[Unifier.Aux[(Apple, Pear), (Fruit, Fruit)]]
-
-    implicitly[Unifier.Aux[(Int, String, Int, Int), YYYY]]
+    implicitly[Unifier[Tuple1[Apple]] :=> Tuple1[Apple]]
+    implicitly[Unifier[(Fruit, Pear)] :=> (Fruit, Fruit)]
+    //implicitly[Unifier[(Apple, Pear)] :=> (Fruit, Fruit)]
+    implicitly[Unifier[(Int, String, Int, Int)] :=> YYYY]
 
     // This fails with 2.13.0 > M5 because the unified type is computed as
     //
@@ -406,7 +405,7 @@ class TupleTests {
     //
     // which was being computed before.
     //
-    //val uapap = implicitly[Unifier.Aux[(Apple, Pear, Apple, Pear), (PWS, PWS, PWS, PWS)]]
+    //val uapap = implicitly[Unifier[(Apple, Pear, Apple, Pear)] :=> (PWS, PWS, PWS, PWS)]
     //val unified1 = uapap(apap)
     //typed[FFFF](unified1)
 
@@ -420,30 +419,30 @@ class TupleTests {
     assertFalse(ununified2.isDefined)
     typed[Option[APBP]](ununified2)
 
-    def getUnifier[T, Out](t : T)(implicit u: Unifier.Aux[T, Out]) = u
+    def getUnifier[T, Out](t: T)(implicit u: Unifier[T] :=> Out) = u
 
     val u2 = getUnifier(Tuple1(a))
-    typed[Unifier.Aux[Tuple1[Apple], Tuple1[Apple]]](u2)
+    typed[Unifier[Tuple1[Apple]] :=> Tuple1[Apple]](u2)
     val u3 = getUnifier((a, a))
-    typed[Unifier.Aux[(Apple, Apple), (Apple, Apple)]](u3)
+    typed[Unifier[(Apple, Apple)] :=> (Apple, Apple)](u3)
     val u4 = getUnifier((a, a, a))
-    typed[Unifier.Aux[(Apple, Apple, Apple), (Apple, Apple, Apple)]](u4)
+    typed[Unifier[(Apple, Apple, Apple)] :=> (Apple, Apple, Apple)](u4)
     val u5 = getUnifier((a, a, a, a))
-    typed[Unifier.Aux[(Apple, Apple, Apple, Apple), (Apple, Apple, Apple, Apple)]](u5)
+    typed[Unifier[(Apple, Apple, Apple, Apple)] :=> (Apple, Apple, Apple, Apple)](u5)
     //val u6 = getUnifier((a, p))
     //typed[Unifier.Aux[(Apple, Pear), (Fruit, Fruit)]](u6)
     val u7 = getUnifier((a, f))
-    typed[Unifier.Aux[(Apple, Fruit), (Fruit, Fruit)]](u7)
+    typed[Unifier[(Apple, Fruit)] :=> (Fruit, Fruit)](u7)
     val u8 = getUnifier((f, a))
-    typed[Unifier.Aux[(Fruit, Apple), (Fruit, Fruit)]](u8)
+    typed[Unifier[(Fruit, Apple)] :=> (Fruit, Fruit)](u8)
     val u9a = getUnifier((a, f))
-    typed[Unifier.Aux[(Apple, Fruit), FF]](u9a)
+    typed[Unifier[(Apple, Fruit)] :=> FF](u9a)
     val u9b = getUnifier((a, p))
-    typed[Unifier.Aux[(Apple, Pear), (PWS, PWS)]](u9b)
+    typed[Unifier[(Apple, Pear)] :=> (PWS, PWS)](u9b)
     val u10 = getUnifier(apap)
-    typed[Unifier.Aux[APAP, (PWS, PWS, PWS, PWS)]](u10)
+    typed[Unifier[APAP] :=> (PWS, PWS, PWS, PWS)](u10)
     val u11 = getUnifier(apbp)
-    typed[Unifier.Aux[APBP, (PWS, PWS, PWS, PWS)]](u11)
+    typed[Unifier[APBP] :=> (PWS, PWS, PWS, PWS)](u11)
 
     val invar1 = (Set(23), Set("foo"))
     val uinvar1 = invar1.unify

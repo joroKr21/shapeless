@@ -39,9 +39,7 @@ object FizzBuzzExample {
   }
 
   sealed trait NatToFizzBuzzInstances1 {
-    type Aux[N <: Nat, FB <: FizzBuzz] = NatToFizzBuzz[N] { type Out = FB }
-
-    implicit def other[N <: Nat]: Aux[N, Other[N]] =
+    implicit def other[N <: Nat]: NatToFizzBuzz[N] :=> Other[N] =
       new NatToFizzBuzz[N] {
         type Out = Other[N]
         def apply() = new Other[N]
@@ -49,13 +47,13 @@ object FizzBuzzExample {
   }
 
   sealed trait NatToFizzBuzInstances0 extends NatToFizzBuzzInstances1 {
-    implicit def fizz[N <: Nat](implicit ev: Mod[N, _3] :=> _0): Aux[N, Fizz.type] =
+    implicit def fizz[N <: Nat](implicit ev: Mod[N, _3] :=> _0): NatToFizzBuzz[N] :=> Fizz.type =
       new NatToFizzBuzz[N] {
         type Out = Fizz.type
         def apply() = Fizz
       }
 
-    implicit def buzz[N <: Nat](implicit ev: Mod[N, _5] :=> _0): Aux[N, Buzz.type] =
+    implicit def buzz[N <: Nat](implicit ev: Mod[N, _5] :=> _0): NatToFizzBuzz[N] :=> Buzz.type =
       new NatToFizzBuzz[N] {
         type Out = Buzz.type
         def apply() = Buzz
@@ -68,7 +66,11 @@ object FizzBuzzExample {
    * implicit resolution.
    */
   object NatToFizzBuzz extends NatToFizzBuzInstances0 {
-    implicit def fizzAndBuzz[N <: Nat](implicit fizz: Aux[N, Fizz.type], buzz: Aux[N, Buzz.type]): Aux[N, FizzAndBuzz.type] =
+    implicit def fizzAndBuzz[N <: Nat](
+      implicit
+      fizz: NatToFizzBuzz[N] :=> Fizz.type,
+      buzz: NatToFizzBuzz[N] :=> Buzz.type
+    ): NatToFizzBuzz[N] :=> FizzAndBuzz.type =
       new NatToFizzBuzz[N] {
         type Out = FizzAndBuzz.type
         def apply() = FizzAndBuzz
@@ -79,17 +81,22 @@ object FizzBuzzExample {
    * Creates an HList that is the reverse solution to the fizzbuzz challenge for
    * the number N. Each element of the HList is a subtype of FizzBuzz.
    */
-  sealed trait RevFizzBuzz[N <: Nat] extends DepFn0 { type Out <: HList }
+  sealed trait RevFizzBuzz[N <: Nat] extends DepFn0 {
+    type Out <: HList
+  }
 
   object RevFizzBuzz {
-    type Aux[N <: Nat, L <: HList] = RevFizzBuzz[N] { type Out = L }
-    implicit def revFizzBuzzOne: Aux[_1, Other[_1] :: HNil] =
+    implicit def revFizzBuzzOne: RevFizzBuzz[_1] :=> (Other[_1] :: HNil) =
       new RevFizzBuzz[_1] {
         type Out = Other[_1] :: HNil
         def apply() = new Other[_1] :: HNil
       }
 
-    implicit def succRevFizzBuzz[N <: Nat](implicit f: RevFizzBuzz[N], n: NatToFizzBuzz[Succ[N]]): Aux[Succ[N], n.Out :: f.Out] =
+    implicit def succRevFizzBuzz[N <: Nat](
+      implicit
+      f: RevFizzBuzz[N],
+      n: NatToFizzBuzz[Succ[N]]
+    ): RevFizzBuzz[Succ[N]] :=> (n.Out :: f.Out) =
       new RevFizzBuzz[Succ[N]] {
         type Out = n.Out :: f.Out
         def apply() = n() :: f()
@@ -100,12 +107,16 @@ object FizzBuzzExample {
    * Creates an HList that is the solution to the fizzbuzz challenge for the
    * number N. Each element of the HList is a subtype of FizzBuzz.
    */
-  sealed trait FizzBuzzResult[N <: Nat] extends DepFn0 { type Out <: HList }
+  sealed trait FizzBuzzResult[N <: Nat] extends DepFn0 {
+    type Out <: HList
+  }
 
   object FizzBuzzResult {
-    type Aux[N <: Nat, L <: HList] = FizzBuzzResult[N] { type Out = L }
-
-    implicit def fizzBuzzResult[N <: Nat, L <: HList](implicit rfb: RevFizzBuzz.Aux[N, L], r: Reverse[L]): Aux[N, r.Out] =
+    implicit def fizzBuzzResult[N <: Nat, L <: HList](
+      implicit
+      rfb: RevFizzBuzz[N] :=> L,
+      r: Reverse[L]
+    ): FizzBuzzResult[N] :=> r.Out =
       new FizzBuzzResult[N] {
         type Out = r.Out
         def apply() = r(rfb())

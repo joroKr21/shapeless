@@ -68,7 +68,7 @@ def scalacOptionsAll(pluginJar: File) = List(
   s"-Jdummy=${pluginJar.lastModified}"
 )
 
-lazy val commonSettings = crossVersionSharedSources ++ Seq(
+lazy val commonSettings = Seq(
   resolvers ++= Resolver.sonatypeOssRepos("releases"),
   resolvers ++= Resolver.sonatypeOssRepos("snapshots"),
   incOptions := incOptions.value.withLogRecompileOnMacro(false),
@@ -97,7 +97,6 @@ def configureJUnit(crossProject: CrossProject) = crossProject
   .nativeConfigure(_.enablePlugins(ScalaNativeJUnitPlugin))
 
 lazy val plugin = project.in(file("plugin"))
-  .settings(crossVersionSharedSources)
   .settings(publishSettings)
   .settings(
     name := "shapeless-plugin",
@@ -187,19 +186,6 @@ lazy val examples = crossProject(JSPlatform, JVMPlatform, NativePlatform)
 lazy val examplesJVM = examples.jvm
 lazy val examplesJS = examples.js
 lazy val examplesNative = examples.native
-
-lazy val crossVersionSharedSources: Seq[Setting[?]] =
-  Seq(Compile, Test).map { sc =>
-    (sc / unmanagedSourceDirectories) ++= {
-      (sc / unmanagedSourceDirectories).value.flatMap { dir: File =>
-        if (dir.getName != "scala") Seq(dir)
-        else CrossVersion.partialVersion(scalaVersion.value) match {
-          case Some((2, y)) if y >= 13 => Seq(new File(dir.getPath + "_2.13+"))
-          case Some((2, y)) if y <  13 => Seq(new File(dir.getPath + "_2.13-"))
-        }
-      }
-    }
-  }
 
 lazy val publishSettings = Seq(
   Test / publishArtifact := false,

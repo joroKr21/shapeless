@@ -3,14 +3,15 @@ import sbtcrossproject.CrossProject
 
 val Scala212 = "2.12.19"
 val Scala213 = "2.13.11"
+val Scala3 = "3.3.0"
 
 commonSettings
 noPublishSettings
 crossScalaVersions := Nil
 
 ThisBuild / organization := "com.chuusai"
-ThisBuild / scalaVersion := Scala213
-ThisBuild / crossScalaVersions := Seq(Scala212, Scala213)
+ThisBuild / scalaVersion := Scala3
+ThisBuild / crossScalaVersions := Seq(Scala212, Scala213, Scala3)
 ThisBuild / mimaFailOnNoPrevious := false
 
 // GHA configuration
@@ -57,38 +58,34 @@ addCommandAlias("validateJS", ";coreJS/compile;coreJS/mimaReportBinaryIssues;cor
 addCommandAlias("validateNative", ";coreNative/compile;coreNative/test;examplesNative/compile;examplesNative/test;examplesNative/runAll;coreNative/doc")
 addCommandAlias("runAll", ";examplesJVM/runAll")
 
-def scalacOptionsAll(pluginJar: File) = List(
-  "-feature",
-  "-deprecation",
-  "-unchecked",
-  "-language:higherKinds,implicitConversions",
-  "-Xfatal-warnings",
-  "-Wconf:cat=other-implicit-type:s",
-  s"-Xplugin:${pluginJar.getAbsolutePath}",
-  s"-Jdummy=${pluginJar.lastModified}"
+def scalacOptionsAll(pluginJar: File, scalaVersion: String) = List.concat(
+  List("-feature", "-deprecation", "-unchecked", "-language:higherKinds,implicitConversions", "-Xfatal-warnings"),
+  if (scalaVersion.startsWith("2")) List(
+    "-Wconf:cat=other-implicit-type:s",
+    s"-Xplugin:${pluginJar.getAbsolutePath}",
+    s"-Jdummy=${pluginJar.lastModified}",
+    "-Ywarn-unused:-implicits",
+    "-Xlint:-adapted-args,-delayedinit-select,-nullary-unit,-package-object-classes,-type-parameter-shadow,_"
+  ) else Nil,
+  if (scalaVersion.startsWith("2.13")) Some("-Xlint:-byname-implicit") else None
 )
 
 lazy val commonSettings = Seq(
   resolvers ++= Resolver.sonatypeOssRepos("releases"),
   resolvers ++= Resolver.sonatypeOssRepos("snapshots"),
   incOptions := incOptions.value.withLogRecompileOnMacro(false),
-  scalacOptions := scalacOptionsAll((plugin / Compile / packageBin).value),
-  Compile / compile / scalacOptions ++= Seq(
-    "-Ywarn-unused:-implicits",
-    "-Xlint:-adapted-args,-delayedinit-select,-nullary-unit,-package-object-classes,-type-parameter-shadow,_"
-  ),
-  Compile / compile / scalacOptions ++= (scalaBinaryVersion.value match {
-    case "2.13" => Seq("-Xlint:-byname-implicit")
-    case _ => Nil
-  }),
+  scalacOptions := scalacOptionsAll((plugin / Compile / packageBin).value, scalaBinaryVersion.value),
   Compile / console / scalacOptions -= "-Xfatal-warnings",
   Test / console / scalacOptions -= "-Xfatal-warnings",
   console / initialCommands := """import shapeless._""",
   Test / parallelExecution := false,
-  libraryDependencies ++= Seq(
-    scalaOrganization.value % "scala-reflect" % scalaVersion.value % "provided",
-    scalaOrganization.value % "scala-compiler" % scalaVersion.value % "provided"
-  )
+  libraryDependencies ++= (scalaBinaryVersion.value match {
+    case "3" => Nil
+    case _ => Seq(
+      scalaOrganization.value % "scala-reflect" % scalaVersion.value % "provided",
+      scalaOrganization.value % "scala-compiler" % scalaVersion.value % "provided"
+    )
+  })
 )
 
 def configureJUnit(crossProject: CrossProject) = crossProject

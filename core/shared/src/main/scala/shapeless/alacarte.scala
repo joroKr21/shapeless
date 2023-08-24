@@ -134,12 +134,12 @@ trait ToStringFacet extends ProductFacet {
   }
 }
 
-trait DefaultCaseClassDefns extends
-  ApplyUnapplyFacet with
-  ProductFacet with
-  PolymorphicEqualityFacet with
-  CopyFacet with
-  ToStringFacet {
+trait DefaultCaseClassDefns
+  extends ApplyUnapplyFacet
+    with ProductFacet
+    with PolymorphicEqualityFacet
+    with CopyFacet
+    with ToStringFacet {
 
   trait CaseClassOps extends
     ApplyUnapplyOps with

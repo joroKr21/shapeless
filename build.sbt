@@ -170,7 +170,7 @@ lazy val scratch = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .crossType(CrossType.Pure)
   .configureCross(configureJUnit)
   .dependsOn(core)
-  .settings(moduleName := "scratch", javaModuleName := "shapeless.scratch")
+  .settings(moduleName := "scratch")
   .settings(commonSettings)
   .settings(noPublishSettings)
 
